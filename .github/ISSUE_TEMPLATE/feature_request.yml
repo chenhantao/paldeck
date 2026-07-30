@@ -1,0 +1,36 @@
+name: 功能建议
+description: 建议一个新功能或体验改进
+title: "[Feature] "
+labels:
+  - enhancement
+body:
+  - type: checkboxes
+    attributes:
+      label: 提交前检查
+      options:
+        - label: 我已搜索现有 Issue，确认没有相同建议。
+          required: true
+
+  - type: textarea
+    attributes:
+      label: 使用场景
+      description: 你希望解决什么问题？谁会受益？
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: 建议方案
+      description: 描述你期望的行为或交互方式。
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: 可选方案
+      description: 是否考虑过其他实现方式或临时解决办法？
+
+  - type: textarea
+    attributes:
+      label: 补充信息
+      description: 可附上脱敏截图、草图或相关链接。

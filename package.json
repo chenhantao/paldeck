@@ -1,0 +1,19 @@
+{
+  "name": "paldeck",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Open-source deployment and desktop management tools for Palworld dedicated servers",
+  "license": "MIT",
+  "workspaces": [
+    "apps/desktop"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @paldeck/desktop",
+    "build": "npm run build --workspace @paldeck/desktop",
+    "check": "npm run check --workspace @paldeck/desktop",
+    "tauri": "npm run tauri --workspace @paldeck/desktop"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

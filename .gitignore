@@ -1,0 +1,29 @@
+# Local secrets and machine-specific configuration
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Palworld server data, saves, and backups
+palworld/
+
+# Local overrides
+compose.override.yaml
+compose.override.yml
+
+# Desktop application build output
+node_modules/
+apps/desktop/dist/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/schemas/
+*.log
+npm-debug.log*
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
+*.swp

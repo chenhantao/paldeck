@@ -1,0 +1,32 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Paldeck",
+  "version": "0.1.0",
+  "identifier": "dev.paldeck.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data:; style-src 'self' 'unsafe-inline'"
+    },
+    "windows": [
+      {
+        "title": "Paldeck",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 680,
+        "center": true,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ]
+  },
+  "bundle": {
+    "active": false
+  }
+}

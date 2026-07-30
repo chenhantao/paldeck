@@ -1,0 +1,113 @@
+# Palworld dedicated server for an x86_64/amd64 Linux host.
+#
+# Configuration values can be supplied as shell environment variables or in a
+# .env file next to this file. ADMIN_PASSWORD is intentionally required.
+# Persistent server files, saves, configuration, and backups are stored under
+# PALWORLD_DATA_DIR (./palworld by default).
+
+name: palworld
+
+services:
+  palworld:
+    image: thijsvanloef/palworld-server-docker:${PALWORLD_IMAGE_TAG:-2.5.0}
+    platform: linux/amd64
+    container_name: palworld-server
+    restart: unless-stopped
+    stop_grace_period: 2m
+    init: true
+
+    ports:
+      # Game traffic. Forward this UDP port on the router/firewall if needed.
+      - "${PALWORLD_BIND_IP:-0.0.0.0}:${PALWORLD_PORT:-8211}:${PALWORLD_PORT:-8211}/udp"
+      # Steam query/community-server discovery.
+      - "${PALWORLD_BIND_IP:-0.0.0.0}:${QUERY_PORT:-27015}:${QUERY_PORT:-27015}/udp"
+      # Management API: keep on loopback unless protected by a VPN or proxy.
+      - "${REST_API_BIND_IP:-127.0.0.1}:${REST_API_PORT:-8212}:${REST_API_PORT:-8212}/tcp"
+
+    environment:
+      # Container process and locale
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
+      TZ: "${TZ:-Asia/Shanghai}"
+
+      # Network and server identity
+      PORT: "${PALWORLD_PORT:-8211}"
+      QUERY_PORT: "${QUERY_PORT:-27015}"
+      PLAYERS: "${PLAYERS:-8}"
+      SERVER_NAME: "${SERVER_NAME:-My Palworld Server}"
+      SERVER_DESCRIPTION: "${SERVER_DESCRIPTION:-Private Palworld dedicated server}"
+      SERVER_PASSWORD: "${SERVER_PASSWORD:-}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in the environment or a .env file}"
+      COMMUNITY: "${COMMUNITY:-false}"
+      PUBLIC_IP: "${PUBLIC_IP:-}"
+      PUBLIC_PORT: "${PUBLIC_PORT:-}"
+      CROSSPLAY_PLATFORMS: "${CROSSPLAY_PLATFORMS:-(Steam,Xbox,PS5,Mac)}"
+
+      # Installation and performance
+      UPDATE_ON_BOOT: "${UPDATE_ON_BOOT:-true}"
+      MULTITHREADING: "${MULTITHREADING:-false}"
+      ENABLE_PERF_THREADING_ARGS: "${ENABLE_PERF_THREADING_ARGS:-false}"
+      WORKER_THREADS_SERVER: "${WORKER_THREADS_SERVER:-}"
+
+      # REST management API. RCON is deprecated in Palworld 1.0.
+      REST_API_ENABLED: "${REST_API_ENABLED:-true}"
+      REST_API_PORT: "${REST_API_PORT:-8212}"
+      RCON_ENABLED: "false"
+      ENABLE_PLAYER_LOGGING: "${ENABLE_PLAYER_LOGGING:-true}"
+      PLAYER_LOGGING_POLL_PERIOD: "${PLAYER_LOGGING_POLL_PERIOD:-5}"
+
+      # Backups and lifecycle automation
+      BACKUP_ENABLED: "${BACKUP_ENABLED:-true}"
+      BACKUP_CRON_EXPRESSION: "${BACKUP_CRON_EXPRESSION:-0 3 * * *}"
+      DELETE_OLD_BACKUPS: "${DELETE_OLD_BACKUPS:-true}"
+      OLD_BACKUP_DAYS: "${OLD_BACKUP_DAYS:-30}"
+      AUTO_UPDATE_ENABLED: "${AUTO_UPDATE_ENABLED:-false}"
+      AUTO_UPDATE_CRON_EXPRESSION: "${AUTO_UPDATE_CRON_EXPRESSION:-0 4 * * *}"
+      AUTO_UPDATE_WARN_MINUTES: "${AUTO_UPDATE_WARN_MINUTES:-30}"
+      AUTO_REBOOT_ENABLED: "${AUTO_REBOOT_ENABLED:-false}"
+      AUTO_REBOOT_CRON_EXPRESSION: "${AUTO_REBOOT_CRON_EXPRESSION:-0 5 * * *}"
+      AUTO_REBOOT_WARN_MINUTES: "${AUTO_REBOOT_WARN_MINUTES:-5}"
+      AUTO_REBOOT_EVEN_IF_PLAYERS_ONLINE: "${AUTO_REBOOT_EVEN_IF_PLAYERS_ONLINE:-false}"
+
+      # Logging
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      LOG_FORMAT_TYPE: "${LOG_FORMAT_TYPE:-default}"
+      # Disabled because image release notes document a restart issue.
+      LOG_FILTER_ENABLED: "false"
+
+      # Frequently adjusted world settings
+      DIFFICULTY: "${DIFFICULTY:-None}"
+      DAYTIME_SPEEDRATE: "${DAYTIME_SPEEDRATE:-1.000000}"
+      NIGHTTIME_SPEEDRATE: "${NIGHTTIME_SPEEDRATE:-1.000000}"
+      EXP_RATE: "${EXP_RATE:-1.000000}"
+      PAL_CAPTURE_RATE: "${PAL_CAPTURE_RATE:-1.000000}"
+      PAL_SPAWN_NUM_RATE: "${PAL_SPAWN_NUM_RATE:-1.000000}"
+      PAL_DAMAGE_RATE_ATTACK: "${PAL_DAMAGE_RATE_ATTACK:-1.000000}"
+      PAL_DAMAGE_RATE_DEFENSE: "${PAL_DAMAGE_RATE_DEFENSE:-1.000000}"
+      PLAYER_DAMAGE_RATE_ATTACK: "${PLAYER_DAMAGE_RATE_ATTACK:-1.000000}"
+      PLAYER_DAMAGE_RATE_DEFENSE: "${PLAYER_DAMAGE_RATE_DEFENSE:-1.000000}"
+      COLLECTION_DROP_RATE: "${COLLECTION_DROP_RATE:-1.000000}"
+      COLLECTION_OBJECT_RESPAWN_SPEED_RATE: "${COLLECTION_OBJECT_RESPAWN_SPEED_RATE:-1.000000}"
+      ENEMY_DROP_ITEM_RATE: "${ENEMY_DROP_ITEM_RATE:-1.000000}"
+      DEATH_PENALTY: "${DEATH_PENALTY:-Item}"
+      PAL_EGG_DEFAULT_HATCHING_TIME: "${PAL_EGG_DEFAULT_HATCHING_TIME:-1.000000}"
+      WORK_SPEED_RATE: "${WORK_SPEED_RATE:-1.000000}"
+      BASE_CAMP_WORKER_MAX_NUM: "${BASE_CAMP_WORKER_MAX_NUM:-15}"
+      BASE_CAMP_MAX_NUM_IN_GUILD: "${BASE_CAMP_MAX_NUM_IN_GUILD:-4}"
+      GUILD_PLAYER_MAX_NUM: "${GUILD_PLAYER_MAX_NUM:-20}"
+      AUTO_SAVE_SPAN: "${AUTO_SAVE_SPAN:-30.000000}"
+      IS_PVP: "${IS_PVP:-false}"
+      ENABLE_FRIENDLY_FIRE: "${ENABLE_FRIENDLY_FIRE:-false}"
+      ENABLE_FAST_TRAVEL: "${ENABLE_FAST_TRAVEL:-true}"
+      ALLOW_CLIENT_MOD: "${ALLOW_CLIENT_MOD:-true}"
+
+    volumes:
+      - type: bind
+        source: "${PALWORLD_DATA_DIR:-./palworld}"
+        target: /palworld
+
+    logging:
+      driver: local
+      options:
+        max-size: "${LOG_MAX_SIZE:-20m}"
+        max-file: "${LOG_MAX_FILES:-5}"
