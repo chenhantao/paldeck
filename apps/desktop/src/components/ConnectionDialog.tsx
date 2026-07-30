@@ -1,6 +1,8 @@
 import { KeyRound, Server, ShieldCheck, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { ServerProfile } from "../types/server";
+import { probeConnection } from "../lib/backend";
+import type { ConnectionProbe, ServerProfile } from "../types/server";
+import { ConnectionFields } from "./ConnectionFields";
 
 interface ConnectionDialogProps {
   open: boolean;
@@ -17,15 +19,43 @@ export function ConnectionDialog({
 }: ConnectionDialogProps) {
   const [draft, setDraft] = useState(profile);
   const [saving, setSaving] = useState(false);
+  const [trust, setTrust] = useState<ConnectionProbe | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => setDraft(profile), [profile, open]);
+  useEffect(() => {
+    setDraft(profile);
+    setTrust(null);
+    setError(null);
+  }, [profile, open]);
 
   if (!open) return null;
+
+  const saveAfterProbe = async (candidate: ServerProfile) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const result = await probeConnection(candidate);
+      if (result.requiresTrust) {
+        setTrust(result);
+        return;
+      }
+      if (!result.success) {
+        setError(result.message || "SSH 连接测试失败");
+        return;
+      }
+      setTrust(null);
+      await onSave(candidate);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="dialog-backdrop" role="presentation" onMouseDown={onClose}>
       <section
-        className="dialog"
+        className="dialog dialog--wide"
         role="dialog"
         aria-modal="true"
         aria-labelledby="connection-title"
@@ -46,54 +76,67 @@ export function ConnectionDialog({
             <Server size={22} />
           </div>
           <div>
-            <strong>复用 OpenSSH 配置</strong>
+            <strong>两种安全登录方式</strong>
             <p>
-              Host 对应 <code>~/.ssh/config</code> 中的名称，私钥不会进入
-              Paldeck。
+              可复用系统 OpenSSH 配置，也可直接使用服务器账号密码。两者都通过
+              SSH 加密连接。
             </p>
           </div>
         </div>
 
-        <div className="form-grid">
-          <label className="field">
-            <span>显示名称</span>
-            <input
-              value={draft.name}
-              onChange={(event) =>
-                setDraft({ ...draft, name: event.target.value })
-              }
-              placeholder="我的帕鲁服务器"
-            />
-          </label>
-          <label className="field">
-            <span>SSH Host</span>
-            <input
-              value={draft.sshHost}
-              onChange={(event) =>
-                setDraft({ ...draft, sshHost: event.target.value })
-              }
-              placeholder="palworld-server"
-              spellCheck={false}
-            />
-          </label>
-          <label className="field field--wide">
-            <span>远程 Compose 目录</span>
-            <input
-              value={draft.remotePath}
-              onChange={(event) =>
-                setDraft({ ...draft, remotePath: event.target.value })
-              }
-              placeholder="/opt/paldeck"
-              spellCheck={false}
-            />
-          </label>
-        </div>
+        <ConnectionFields
+          profile={draft}
+          onChange={(next) => {
+            setDraft(next);
+            setTrust(null);
+            setError(null);
+          }}
+          disabled={saving}
+        />
+
+        {trust?.requiresTrust && (
+          <div className="trust-card">
+            <ShieldCheck size={20} />
+            <div>
+              <strong>确认服务器主机密钥</strong>
+              <p>
+                请通过服务器控制台或管理员核对以下 SHA256 指纹。确认后 Paldeck
+                会保存公钥，后续发生变化时将拒绝连接。
+              </p>
+              <code>{trust.fingerprint}</code>
+            </div>
+            <button
+              className="button button--secondary"
+              onClick={() => {
+                if (
+                  draft.auth.kind !== "password" ||
+                  !trust.hostKey
+                ) {
+                  return;
+                }
+                const trusted: ServerProfile = {
+                  ...draft,
+                  auth: {
+                    ...draft.auth,
+                    trustedHostKey: trust.hostKey,
+                  },
+                };
+                setDraft(trusted);
+                void saveAfterProbe(trusted);
+              }}
+              disabled={saving}
+            >
+              指纹一致，信任并继续
+            </button>
+          </div>
+        )}
+
+        {error && <div className="form-error">{error}</div>}
 
         <div className="security-note">
           <ShieldCheck size={18} />
           <span>
-            首次连接会校验 SSH 主机指纹。管理 API 通过 SSH 隧道访问，无需开放
-            8212 端口。
+            密码不会持久化；服务器公钥和非敏感连接信息会保存在本机。
           </span>
         </div>
 
@@ -103,17 +146,8 @@ export function ConnectionDialog({
           </button>
           <button
             className="button button--primary"
-            disabled={
-              saving || !draft.sshHost.trim() || !draft.remotePath.trim()
-            }
-            onClick={async () => {
-              setSaving(true);
-              try {
-                await onSave(draft);
-              } finally {
-                setSaving(false);
-              }
-            }}
+            disabled={saving || !isConnectionComplete(draft)}
+            onClick={() => void saveAfterProbe(draft)}
           >
             <KeyRound size={17} />
             {saving ? "正在测试…" : "保存并测试连接"}
@@ -121,5 +155,19 @@ export function ConnectionDialog({
         </footer>
       </section>
     </div>
+  );
+}
+
+function isConnectionComplete(profile: ServerProfile): boolean {
+  if (!profile.name.trim() || !profile.remotePath.trim()) return false;
+  if (profile.auth.kind === "openssh") {
+    return Boolean(profile.auth.sshHost.trim());
+  }
+  return Boolean(
+    profile.auth.host.trim() &&
+      profile.auth.username.trim() &&
+      profile.auth.password &&
+      profile.auth.port >= 1 &&
+      profile.auth.port <= 65535,
   );
 }

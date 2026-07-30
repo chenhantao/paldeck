@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ConnectionDialog } from "./components/ConnectionDialog";
+import { SetupWizard } from "./components/SetupWizard";
 import { AppShell, type PageId } from "./components/layout/AppShell";
 import { BackupsPage } from "./pages/BackupsPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -11,24 +12,28 @@ import {
   isDesktopRuntime,
   runComposeAction,
   runServerAction,
-  testConnection,
 } from "./lib/backend";
+import { profileNeedsPassword } from "./lib/profile";
+import { loadProfile, saveProfile } from "./lib/profileStore";
 import type { ServerProfile } from "./types/server";
-
-const initialProfile: ServerProfile = {
-  id: "default",
-  name: "翠叶群岛",
-  sshHost: "palworld-server",
-  remotePath: "/opt/paldeck",
-};
 
 export function App() {
   const [page, setPage] = useState<PageId>("dashboard");
-  const [profile, setProfile] = useState(initialProfile);
+  const [profile, setProfile] = useState<ServerProfile | null>(() =>
+    loadProfile(),
+  );
+  const [setupOpen, setSetupOpen] = useState(() => loadProfile() === null);
   const [connectionOpen, setConnectionOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (profile && profileNeedsPassword(profile)) {
+      setConnectionOpen(true);
+    }
+  }, [profile]);
+
   const content = useMemo(() => {
+    if (!profile) return null;
     switch (page) {
       case "players":
         return <PlayersPage />;
@@ -71,6 +76,20 @@ export function App() {
     }
   }, [page, profile]);
 
+  if (setupOpen || !profile) {
+    return (
+      <SetupWizard
+        initialProfile={profile ?? undefined}
+        onComplete={(nextProfile) => {
+          saveProfile(nextProfile);
+          setProfile(nextProfile);
+          setSetupOpen(false);
+          setNotice("服务器初始化配置已保存");
+        }}
+      />
+    );
+  }
+
   return (
     <>
       <AppShell
@@ -88,24 +107,14 @@ export function App() {
         profile={profile}
         onClose={() => setConnectionOpen(false)}
         onSave={async (nextProfile) => {
-          try {
-            const result = await testConnection(nextProfile);
-            if (!result.success) {
-              setNotice(result.stderr || "SSH 连接测试失败");
-              return;
-            }
-            setProfile(nextProfile);
-            setConnectionOpen(false);
-            setNotice(
-              isDesktopRuntime()
-                ? "SSH 连接测试成功"
-                : "Preview：配置已保存，桌面运行时才会连接 SSH",
-            );
-          } catch (error) {
-            setNotice(
-              error instanceof Error ? error.message : "SSH 连接测试失败",
-            );
-          }
+          saveProfile(nextProfile);
+          setProfile(nextProfile);
+          setConnectionOpen(false);
+          setNotice(
+            isDesktopRuntime()
+              ? "SSH 连接测试成功"
+              : "Preview：配置已保存，桌面运行时才会连接 SSH",
+          );
         }}
       />
 

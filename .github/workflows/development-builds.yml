@@ -1,0 +1,160 @@
+name: Development builds
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: development-builds-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows application
+        run: npm run tauri --workspace @paldeck/desktop -- build --target x86_64-pc-windows-msvc --bundles nsis
+
+      - name: Prepare Windows packages
+        shell: pwsh
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP "paldeck-windows-x64"
+          New-Item -ItemType Directory -Force -Path $output | Out-Null
+
+          $target = "apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release"
+          $portable = Join-Path $output "Paldeck-windows-x64-portable-preview.zip"
+          Compress-Archive -Path "$target/paldeck.exe" -DestinationPath $portable
+
+          $installers = Get-ChildItem "$target/bundle/nsis" -Filter "*.exe"
+          if ($installers.Count -eq 0) {
+            throw "Tauri did not produce an NSIS installer."
+          }
+          Copy-Item $installers.FullName -Destination $output
+
+      - name: Upload Windows packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: Paldeck-windows-x64-development
+          path: ${{ runner.temp }}/paldeck-windows-x64/*
+          if-no-files-found: error
+          retention-days: 14
+
+  macos:
+    name: macOS arm64
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build macOS application
+        run: npm run tauri --workspace @paldeck/desktop -- build --target aarch64-apple-darwin --bundles app --no-sign
+
+      - name: Prepare macOS package
+        run: |
+          output="${RUNNER_TEMP}/paldeck-macos-arm64"
+          mkdir -p "${output}"
+          app="apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Paldeck.app"
+          ditto -c -k --sequesterRsrc --keepParent "${app}" "${output}/Paldeck-macos-arm64-unsigned.zip"
+
+      - name: Upload macOS package
+        uses: actions/upload-artifact@v7
+        with:
+          name: Paldeck-macos-arm64-development
+          path: ${{ runner.temp }}/paldeck-macos-arm64/*
+          if-no-files-found: error
+          retention-days: 14
+
+  linux:
+    name: Linux x64
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            patchelf \
+            pkg-config
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Linux application
+        run: npm run tauri --workspace @paldeck/desktop -- build --bundles appimage,deb
+
+      - name: Prepare Linux packages
+        run: |
+          output="${RUNNER_TEMP}/paldeck-linux-x64"
+          mkdir -p "${output}"
+          staging="${RUNNER_TEMP}/paldeck-linux-x64-staging"
+          mkdir -p "${staging}"
+          cp apps/desktop/src-tauri/target/release/bundle/appimage/*.AppImage "${staging}/"
+          cp apps/desktop/src-tauri/target/release/bundle/deb/*.deb "${staging}/"
+          chmod +x "${staging}"/*.AppImage
+          tar -C "${staging}" -czf "${output}/Paldeck-linux-x64-development.tar.gz" .
+
+      - name: Upload Linux packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: Paldeck-linux-x64-development
+          path: ${{ runner.temp }}/paldeck-linux-x64/*
+          if-no-files-found: error
+          retention-days: 14

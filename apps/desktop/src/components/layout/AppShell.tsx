@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import type { ServerProfile, ServerStatus } from "../../types/server";
+import { profileAddress } from "../../lib/profile";
 import { StatusPill } from "../ui/StatusPill";
 
 export type PageId =
@@ -69,7 +70,7 @@ export function AppShell({
           </span>
           <span className="server-switcher__copy">
             <strong>{profile.name}</strong>
-            <small>{profile.sshHost}</small>
+            <small>{profileAddress(profile)}</small>
           </span>
           <ChevronDown size={16} />
         </button>

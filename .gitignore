@@ -1,29 +1,79 @@
-# Local secrets and machine-specific configuration
+# Environment files and local secrets
 .env
 .env.*
 !.env.example
+!.env.*.example
+.envrc
+.direnv/
+.npmrc
+credentials.json
+secrets.json
+
+# SSH, signing, and certificate credentials
 *.key
 *.pem
 *.p12
 *.pfx
+*.jks
+*.keystore
+*.mobileprovision
+*.provisionprofile
+id_rsa
+id_ed25519
+id_ecdsa
+known_hosts
 
 # Palworld server data, saves, and backups
-palworld/
+/palworld/
+/backups/
+/saves/
 
-# Local overrides
+# Docker Compose local overrides
 compose.override.yaml
 compose.override.yml
 
-# Desktop application build output
+# Node.js, npm, Vite, and test output
 node_modules/
-apps/desktop/dist/
-apps/desktop/src-tauri/target/
-apps/desktop/src-tauri/gen/schemas/
+dist/
+coverage/
+.vite/
+.npm/
+.pnpm-store/
+*.tsbuildinfo
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# OS and editor files
-.DS_Store
+# Rust and Tauri generated output
+target/
+**/*.rs.bk
+apps/desktop/src-tauri/gen/schemas/
+
+# Packaged application artifacts
+/artifacts/
+/release/
+
+# Temporary and cache files
+.cache/
+.eslintcache
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# IDE configuration
 .idea/
 .vscode/
-*.swp
+.fleet/
+.history/
+
+# Operating system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+.AppleDouble
+.LSOverride
+._*

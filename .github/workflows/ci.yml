@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - develop
   pull_request:
     branches:
       - master
@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -52,7 +52,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
 
       - name: Install Rust components
         run: rustup component add clippy rustfmt

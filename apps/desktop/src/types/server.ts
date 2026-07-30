@@ -7,11 +7,54 @@ export type ServerStatus =
 
 export type ComposeAction = "start" | "stop" | "restart" | "pull";
 
+export type Authentication =
+  | {
+      kind: "openssh";
+      sshHost: string;
+    }
+  | {
+      kind: "password";
+      host: string;
+      port: number;
+      username: string;
+      password: string;
+      trustedHostKey?: string;
+    };
+
 export interface ServerProfile {
   id: string;
   name: string;
-  sshHost: string;
+  auth: Authentication;
   remotePath: string;
+}
+
+export interface ConnectionProbe {
+  success: boolean;
+  requiresTrust: boolean;
+  fingerprint?: string;
+  hostKey?: string;
+  message: string;
+}
+
+export interface EnvironmentInspection {
+  os: string;
+  arch: string;
+  dockerInstalled: boolean;
+  dockerUsable: boolean;
+  composeInstalled: boolean;
+  directoryExists: boolean;
+  composeExists: boolean;
+  envExists: boolean;
+  deploymentValid: boolean;
+  containerRunning: boolean;
+}
+
+export interface InitializationOptions {
+  serverName: string;
+  serverPassword: string;
+  adminPassword: string;
+  players: number;
+  startAfterInstall: boolean;
 }
 
 export interface ServerMetrics {
