@@ -16,6 +16,7 @@ desktop client performs allowlisted management operations over SSH.
 - Deploy a Palworld dedicated server with Docker Compose
 - Configure common server, network, backup, and world options through `.env`
 - Manage servers from a cross-platform Tauri 2, React, and Rust desktop client
+- Use the desktop interface in English or Simplified Chinese, or follow the system language
 - Inspect Linux, amd64, Docker, and Compose during first-time setup
 - Reuse an OpenSSH configuration or connect with a server username and password
 - Reopen deployments carrying a Paldeck management marker, or safely create a new one
@@ -95,6 +96,10 @@ On first launch, the desktop client opens the setup wizard:
    does not exist or is completely empty.
 5. Choose a safe data subdirectory, write the management marker, generate
    `.env`, validate the Compose files, and optionally start the server.
+
+The language selector is available in the setup wizard, the sidebar, and the
+world-settings page. The preference is stored locally; **System default** uses
+Simplified Chinese for Chinese system locales and English for other locales.
 
 Username-and-password login still uses the SSH protocol. The password remains
 only in the current application session and is never written to browser

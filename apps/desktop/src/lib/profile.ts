@@ -1,9 +1,9 @@
 import type { ServerProfile } from "../types/server";
 
-export function createDefaultProfile(): ServerProfile {
+export function createDefaultProfile(name = "我的帕鲁服务器"): ServerProfile {
   return {
     id: crypto.randomUUID(),
-    name: "我的帕鲁服务器",
+    name,
     auth: {
       kind: "openssh",
       sshHost: "",
@@ -12,9 +12,9 @@ export function createDefaultProfile(): ServerProfile {
   };
 }
 
-export function profileAddress(profile: ServerProfile): string {
+export function profileAddress(profile: ServerProfile, emptyLabel = "尚未配置"): string {
   if (profile.auth.kind === "openssh") {
-    return profile.auth.sshHost || "尚未配置";
+    return profile.auth.sshHost || emptyLabel;
   }
   const port = profile.auth.port === 22 ? "" : `:${profile.auth.port}`;
   return `${profile.auth.username || "user"}@${profile.auth.host || "server"}${port}`;

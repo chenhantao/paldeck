@@ -13,6 +13,8 @@ import type { ReactNode } from "react";
 import type { ServerProfile, ServerStatus } from "../../types/server";
 import { profileAddress } from "../../lib/profile";
 import { StatusPill } from "../ui/StatusPill";
+import { LanguageSelector } from "../LanguageSelector";
+import { useI18n } from "../../i18n/I18nContext";
 
 export type PageId =
   | "dashboard"
@@ -50,6 +52,7 @@ export function AppShell({
   onOpenConnection,
   children,
 }: AppShellProps) {
+  const { t } = useI18n();
   return (
     <div className="app-frame">
       <aside className="sidebar">
@@ -70,13 +73,13 @@ export function AppShell({
           </span>
           <span className="server-switcher__copy">
             <strong>{profile.name}</strong>
-            <small>{profileAddress(profile)}</small>
+            <small>{profileAddress(profile, t("尚未配置"))}</small>
           </span>
           <ChevronDown size={16} />
         </button>
 
-        <nav className="sidebar__nav" aria-label="主导航">
-          <span className="sidebar__eyebrow">管理</span>
+        <nav className="sidebar__nav" aria-label={t("主导航")}>
+          <span className="sidebar__eyebrow">{t("管理")}</span>
           {navItems.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -84,15 +87,16 @@ export function AppShell({
               onClick={() => onPageChange(id)}
             >
               <Icon size={18} strokeWidth={1.8} />
-              <span>{label}</span>
+              <span>{t(label)}</span>
               {id === "players" && <em>3</em>}
             </button>
           ))}
         </nav>
 
         <div className="sidebar__footer">
+          <LanguageSelector compact />
           <div className="sidebar-status">
-            <span>服务状态</span>
+            <span>{t("服务状态")}</span>
             <StatusPill status={status} />
           </div>
           <div className="sidebar-version">
@@ -101,7 +105,7 @@ export function AppShell({
           </div>
         </div>
 
-        <button className="sidebar-collapse" aria-label="收起侧边栏">
+        <button className="sidebar-collapse" aria-label={t("收起侧边栏")}>
           <PanelLeftClose size={16} />
         </button>
       </aside>

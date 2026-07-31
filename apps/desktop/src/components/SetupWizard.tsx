@@ -26,6 +26,8 @@ import type {
   ServerProfile,
 } from "../types/server";
 import { ConnectionFields } from "./ConnectionFields";
+import { LanguageSelector } from "./LanguageSelector";
+import { useI18n } from "../i18n/I18nContext";
 
 type SetupStep = "connection" | "environment" | "configuration" | "complete";
 
@@ -47,9 +49,10 @@ export function SetupWizard({
   initialProfile,
   onComplete,
 }: SetupWizardProps) {
+  const { t, errorMessage } = useI18n();
   const [step, setStep] = useState<SetupStep>("connection");
   const [profile, setProfile] = useState(
-    initialProfile ?? createDefaultProfile(),
+    initialProfile ?? createDefaultProfile(t("我的帕鲁服务器")),
   );
   const [inspection, setInspection] =
     useState<EnvironmentInspection | null>(null);
@@ -69,7 +72,7 @@ export function SetupWizard({
         return;
       }
       if (!probe.success) {
-        setError(probe.message || "连接服务器失败");
+        setError(errorMessage(probe.message || t("连接服务器失败")));
         return;
       }
       setTrust(null);
@@ -78,7 +81,7 @@ export function SetupWizard({
       setInspection(environment);
       setStep("environment");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(errorMessage(cause));
     } finally {
       setBusy(false);
     }
@@ -117,16 +120,18 @@ export function SetupWizard({
           setInspection(refreshed);
           setStep("environment");
           setError(
-            `部署文件已写入，但后续启动失败：${result.stderr || "请检查远程 Docker 日志"}`,
+            t("部署文件已写入，但后续启动失败：{detail}", {
+              detail: errorMessage(result.stderr || t("请检查远程 Docker 日志")),
+            }),
           );
         } else {
-          setError(result.stderr || "远程初始化失败");
+          setError(errorMessage(result.stderr || t("远程初始化失败")));
         }
         return;
       }
       setStep("complete");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(errorMessage(cause));
     } finally {
       setBusy(false);
     }
@@ -155,10 +160,11 @@ export function SetupWizard({
             </span>
             <div>
               <strong>Paldeck</strong>
-              <small>首次使用向导</small>
+              <small>{t("首次使用向导")}</small>
             </div>
           </div>
-          <ol className="setup-steps" aria-label="初始化进度">
+          <LanguageSelector />
+          <ol className="setup-steps" aria-label={t("初始化进度")}>
             {[
               ["connection", "连接"],
               ["environment", "检查"],
@@ -174,7 +180,7 @@ export function SetupWizard({
                 }
               >
                 <span>{setupStepIndex(step) > index ? <Check size={13} /> : index + 1}</span>
-                {label}
+                {t(label)}
               </li>
             ))}
           </ol>
@@ -189,10 +195,11 @@ export function SetupWizard({
                 </span>
                 <div>
                   <span className="eyebrow">REMOTE SERVER</span>
-                  <h1>连接你的服务器</h1>
+                  <h1>{t("连接你的服务器")}</h1>
                   <p>
-                    可复用 OpenSSH 配置，也可直接填写账号密码。底层连接始终使用
-                    SSH 加密。
+                    {t(
+                      "可复用 OpenSSH 配置，也可直接填写账号密码。底层连接始终使用 SSH 加密。",
+                    )}
                   </p>
                 </div>
               </div>
@@ -211,10 +218,11 @@ export function SetupWizard({
                 <div className="trust-card">
                   <ShieldCheck size={21} />
                   <div>
-                    <strong>首次连接：核对主机密钥</strong>
+                    <strong>{t("首次连接：核对主机密钥")}</strong>
                     <p>
-                      请通过服务器控制台核对指纹。Paldeck 保存的是公开主机密钥，
-                      不是登录密码。
+                      {t(
+                        "请通过服务器控制台核对指纹。Paldeck 保存的是公开主机密钥，不是登录密码。",
+                      )}
                     </p>
                     <code>{trust.fingerprint}</code>
                   </div>
@@ -223,7 +231,7 @@ export function SetupWizard({
                     onClick={trustAndContinue}
                     disabled={busy}
                   >
-                    指纹一致，信任
+                    {t("指纹一致，信任")}
                   </button>
                 </div>
               )}
@@ -238,22 +246,23 @@ export function SetupWizard({
                 </span>
                 <div>
                   <span className="eyebrow">ENVIRONMENT CHECK</span>
-                  <h1>远程环境检查</h1>
+                  <h1>{t("远程环境检查")}</h1>
                   <p>
-                    Paldeck 不会自动执行 sudo 安装 Docker；缺失项目需要先在服务器
-                    上处理。
+                    {t(
+                      "Paldeck 不会自动执行 sudo 安装 Docker；缺失项目需要先在服务器上处理。",
+                    )}
                   </p>
                 </div>
               </div>
 
               <div className="check-grid">
                 <CheckItem
-                  label="操作系统"
+                  label={t("操作系统")}
                   value={inspection.os}
                   ok={inspection.os.toLowerCase() === "linux"}
                 />
                 <CheckItem
-                  label="处理器架构"
+                  label={t("处理器架构")}
                   value={inspection.arch}
                   ok={["x86_64", "amd64"].includes(
                     inspection.arch.toLowerCase(),
@@ -261,31 +270,31 @@ export function SetupWizard({
                 />
                 <CheckItem
                   label="Docker"
-                  value={inspection.dockerInstalled ? "已安装" : "未安装"}
+                  value={t(inspection.dockerInstalled ? "已安装" : "未安装")}
                   ok={inspection.dockerInstalled}
                 />
                 <CheckItem
-                  label="Docker 权限"
-                  value={inspection.dockerUsable ? "可直接使用" : "不可用"}
+                  label={t("Docker 权限")}
+                  value={t(inspection.dockerUsable ? "可直接使用" : "不可用")}
                   ok={inspection.dockerUsable}
                 />
                 <CheckItem
                   label="Docker Compose"
-                  value={inspection.composeInstalled ? "可用" : "不可用"}
+                  value={t(inspection.composeInstalled ? "可用" : "不可用")}
                   ok={inspection.composeInstalled}
                 />
                 <CheckItem
-                  label="部署目录"
+                  label={t("部署目录")}
                   value={
                     !inspection.pathSafe
-                      ? "路径不安全"
+                      ? t("路径不安全")
                       : inspection.managedDirectory
-                        ? "由 Paldeck 管理"
+                        ? t("由 Paldeck 管理")
                         : inspection.directoryExists
                           ? inspection.directoryEmpty
-                            ? "已存在且为空"
-                            : "非空且不受管理"
-                          : "不存在，将安全创建"
+                            ? t("已存在且为空")
+                            : t("非空且不受管理")
+                          : t("不存在，将安全创建")
                   }
                   ok={Boolean(
                     inspection.pathSafe &&
@@ -312,13 +321,13 @@ export function SetupWizard({
                   <div>
                     <strong>
                       {existingDeployment
-                        ? "发现有效的 Paldeck 部署"
-                        : "Paldeck 管理目录不完整或配置无效"}
+                        ? t("发现有效的 Paldeck 部署")
+                        : t("Paldeck 管理目录不完整或配置无效")}
                     </strong>
                     <p>
                       {existingDeployment
-                        ? "管理标记、compose.yaml 和 .env 均已验证，可以继续使用。"
-                        : "Paldeck 不会自动覆盖或重建该目录。请先检查远程目录中的管理标记和部署文件。"}
+                        ? t("管理标记、compose.yaml 和 .env 均已验证，可以继续使用。")
+                        : t("Paldeck 不会自动覆盖或重建该目录。请先检查远程目录中的管理标记和部署文件。")}
                     </p>
                   </div>
                 </div>
@@ -330,10 +339,11 @@ export function SetupWizard({
                   <div className="setup-callout setup-callout--warning">
                     <CircleAlert size={20} />
                     <div>
-                      <strong>目录非空且没有 Paldeck 管理标记</strong>
+                      <strong>{t("目录非空且没有 Paldeck 管理标记")}</strong>
                       <p>
-                        为避免碰到同名目录中的其他文件，Paldeck 拒绝初始化，也不会
-                        接管、移动或删除其中的任何内容。请改用不存在的目录或空目录。
+                        {t(
+                          "为避免碰到同名目录中的其他文件，Paldeck 拒绝初始化，也不会接管、移动或删除其中的任何内容。请改用不存在的目录或空目录。",
+                        )}
                       </p>
                     </div>
                   </div>
@@ -343,10 +353,11 @@ export function SetupWizard({
                 <div className="setup-callout setup-callout--warning">
                   <CircleAlert size={20} />
                   <div>
-                    <strong>管理目录中存在额外文件</strong>
+                    <strong>{t("管理目录中存在额外文件")}</strong>
                     <p>
-                      Paldeck 只管理标记文件、compose.yaml、.env、配置备份和
-                      palworld 数据目录；额外文件会原样保留。
+                      {t(
+                        "Paldeck 只管理标记文件、compose.yaml、.env、配置备份和游戏数据目录；额外文件会原样保留。",
+                      )}
                     </p>
                   </div>
                 </div>
@@ -356,10 +367,11 @@ export function SetupWizard({
                 <div className="setup-callout setup-callout--warning">
                   <CircleAlert size={20} />
                   <div>
-                    <strong>环境尚未满足部署要求</strong>
+                    <strong>{t("环境尚未满足部署要求")}</strong>
                     <p>
-                      需要 Linux x86_64、可由当前账号使用的 Docker，以及 Docker
-                      Compose 插件。
+                      {t(
+                        "需要 Linux x86_64、可由当前账号使用的 Docker，以及 Docker Compose 插件。",
+                      )}
                     </p>
                   </div>
                 </div>
@@ -375,18 +387,18 @@ export function SetupWizard({
                 </span>
                 <div>
                   <span className="eyebrow">SERVER CONFIGURATION</span>
-                  <h1>创建服务器配置</h1>
+                  <h1>{t("创建服务器配置")}</h1>
                   <p>
-                    初始化只允许使用不存在或完全为空的目录，并会写入 Paldeck
-                    管理标记、内置 Compose 模板和权限为 600 的 `.env`。游戏数据
-                    只能保存在部署目录内由你指定的安全子目录。
+                    {t(
+                      "初始化只允许使用不存在或完全为空的目录，并会写入 Paldeck 管理标记、内置 Compose 模板和权限为 600 的 .env。游戏数据只能保存在部署目录内由你指定的安全子目录。",
+                    )}
                   </p>
                 </div>
               </div>
 
               <div className="form-grid">
                 <label className="field field--wide">
-                  <span>服务器名称</span>
+                  <span>{t("服务器名称")}</span>
                   <input
                     value={options.serverName}
                     onChange={(event) =>
@@ -399,7 +411,7 @@ export function SetupWizard({
                   />
                 </label>
                 <label className="field">
-                  <span>管理员密码</span>
+                  <span>{t("管理员密码")}</span>
                   <input
                     type="password"
                     value={options.adminPassword}
@@ -409,13 +421,13 @@ export function SetupWizard({
                         adminPassword: event.target.value,
                       })
                     }
-                    placeholder="至少 8 个字符"
+                    placeholder={t("至少 8 个字符")}
                     autoComplete="new-password"
                     disabled={busy}
                   />
                 </label>
                 <label className="field">
-                  <span>加入密码</span>
+                  <span>{t("加入密码")}</span>
                   <input
                     type="password"
                     value={options.serverPassword}
@@ -425,12 +437,12 @@ export function SetupWizard({
                         serverPassword: event.target.value,
                       })
                     }
-                    placeholder="留空表示无需密码"
+                    placeholder={t("留空表示无需密码")}
                     disabled={busy}
                   />
                 </label>
                 <label className="field">
-                  <span>最大玩家数</span>
+                  <span>{t("最大玩家数")}</span>
                   <input
                     type="number"
                     min={1}
@@ -446,7 +458,7 @@ export function SetupWizard({
                   />
                 </label>
                 <label className="field">
-                  <span>游戏数据子目录</span>
+                  <span>{t("游戏数据子目录")}</span>
                   <input
                     value={options.dataDirectory}
                     onChange={(event) =>
@@ -460,8 +472,9 @@ export function SetupWizard({
                     disabled={busy}
                   />
                   <small className="field__hint">
-                    必须以 ./ 开头，仅允许字母、数字、点、横线、下划线和斜杠；
-                    不允许绝对路径、空格、.. 或符号链接。
+                    {t(
+                      "必须以 ./ 开头，仅允许字母、数字、点、横线、下划线和斜杠；不允许绝对路径、空格、.. 或符号链接。",
+                    )}
                   </small>
                 </label>
                 <label className="setup-checkbox">
@@ -477,8 +490,8 @@ export function SetupWizard({
                     disabled={busy}
                   />
                   <span>
-                    <strong>初始化完成后立即启动</strong>
-                    <small>首次拉取镜像和安装游戏可能需要较长时间。</small>
+                    <strong>{t("初始化完成后立即启动")}</strong>
+                    <small>{t("首次拉取镜像和安装游戏可能需要较长时间。")}</small>
                   </span>
                 </label>
               </div>
@@ -486,15 +499,15 @@ export function SetupWizard({
               <div className="setup-summary">
                 <Container size={20} />
                 <div>
-                  <span>部署位置</span>
+                  <span>{t("部署位置")}</span>
                   <strong>{profile.remotePath}</strong>
                 </div>
                 <div>
-                  <span>运行平台</span>
+                  <span>{t("运行平台")}</span>
                   <strong>linux/amd64</strong>
                 </div>
                 <div>
-                  <span>数据子目录</span>
+                  <span>{t("数据子目录")}</span>
                   <strong>{options.dataDirectory}</strong>
                 </div>
               </div>
@@ -508,20 +521,21 @@ export function SetupWizard({
               </span>
               <div>
                 <span className="eyebrow">READY</span>
-                <h1>Paldeck 已准备完成</h1>
+                <h1>{t("Paldeck 已准备完成")}</h1>
                 <p>
-                  连接信息已经保存。账号密码仅保留在当前会话，重新打开应用时需要
-                  再次输入。
+                  {t(
+                    "连接信息已经保存。账号密码仅保留在当前会话，重新打开应用时需要再次输入。",
+                  )}
                 </p>
               </div>
               <div className="setup-summary">
                 <Server size={20} />
                 <div>
-                  <span>服务器</span>
+                  <span>{t("服务器")}</span>
                   <strong>{profile.name}</strong>
                 </div>
                 <div>
-                  <span>远程目录</span>
+                  <span>{t("远程目录")}</span>
                   <strong>{profile.remotePath}</strong>
                 </div>
               </div>
@@ -534,7 +548,7 @@ export function SetupWizard({
         <footer className="setup-footer">
           <div className="setup-security">
             <ShieldCheck size={16} />
-            登录密码不会写入磁盘
+            {t("登录密码不会写入磁盘")}
           </div>
           <div className="setup-actions">
             {step === "environment" && (
@@ -547,7 +561,7 @@ export function SetupWizard({
                 disabled={busy}
               >
                 <ChevronLeft size={17} />
-                返回
+                {t("返回")}
               </button>
             )}
             {step === "configuration" && (
@@ -560,7 +574,7 @@ export function SetupWizard({
                 disabled={busy}
               >
                 <ChevronLeft size={17} />
-                返回
+                {t("返回")}
               </button>
             )}
 
@@ -575,7 +589,7 @@ export function SetupWizard({
                 ) : (
                   <ChevronRight size={17} />
                 )}
-                {busy ? "正在连接…" : "连接并检查"}
+                {t(busy ? "正在连接…" : "连接并检查")}
               </button>
             )}
             {step === "environment" &&
@@ -585,7 +599,7 @@ export function SetupWizard({
                   className="button button--primary"
                   onClick={() => setStep("complete")}
                 >
-                  使用现有 Paldeck 部署
+                  {t("使用现有 Paldeck 部署")}
                   <ChevronRight size={17} />
                 </button>
               )}
@@ -596,7 +610,7 @@ export function SetupWizard({
                   className="button button--primary"
                   onClick={() => setStep("configuration")}
                 >
-                  创建新部署
+                  {t("创建新部署")}
                   <ChevronRight size={17} />
                 </button>
               )}
@@ -618,7 +632,7 @@ export function SetupWizard({
                 ) : (
                   <Container size={17} />
                 )}
-                {busy ? "正在初始化…" : "开始初始化"}
+                {t(busy ? "正在初始化…" : "开始初始化")}
               </button>
             )}
             {step === "complete" && (
@@ -626,7 +640,7 @@ export function SetupWizard({
                 className="button button--primary"
                 onClick={() => onComplete(profile)}
               >
-                进入控制台
+                {t("进入控制台")}
                 <ChevronRight size={17} />
               </button>
             )}

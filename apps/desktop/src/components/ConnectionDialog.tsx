@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { probeConnection } from "../lib/backend";
 import type { ConnectionProbe, ServerProfile } from "../types/server";
 import { ConnectionFields } from "./ConnectionFields";
+import { useI18n } from "../i18n/I18nContext";
 
 interface ConnectionDialogProps {
   open: boolean;
@@ -21,6 +22,7 @@ export function ConnectionDialog({
   const [saving, setSaving] = useState(false);
   const [trust, setTrust] = useState<ConnectionProbe | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { t, errorMessage } = useI18n();
 
   useEffect(() => {
     setDraft(profile);
@@ -40,13 +42,13 @@ export function ConnectionDialog({
         return;
       }
       if (!result.success) {
-        setError(result.message || "SSH 连接测试失败");
+        setError(errorMessage(result.message || t("SSH 连接测试失败")));
         return;
       }
       setTrust(null);
       await onSave(candidate);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setError(errorMessage(cause));
     } finally {
       setSaving(false);
     }
@@ -64,9 +66,9 @@ export function ConnectionDialog({
         <header className="dialog__header">
           <div>
             <span className="eyebrow">CONNECTION</span>
-            <h2 id="connection-title">连接远程服务器</h2>
+            <h2 id="connection-title">{t("连接远程服务器")}</h2>
           </div>
-          <button className="icon-button" onClick={onClose} aria-label="关闭">
+          <button className="icon-button" onClick={onClose} aria-label={t("关闭")}>
             <X size={18} />
           </button>
         </header>
@@ -76,10 +78,11 @@ export function ConnectionDialog({
             <Server size={22} />
           </div>
           <div>
-            <strong>两种安全登录方式</strong>
+            <strong>{t("两种安全登录方式")}</strong>
             <p>
-              可复用系统 OpenSSH 配置，也可直接使用服务器账号密码。两者都通过
-              SSH 加密连接。
+              {t(
+                "可复用系统 OpenSSH 配置，也可直接使用服务器账号密码。两者都通过 SSH 加密连接。",
+              )}
             </p>
           </div>
         </div>
@@ -98,10 +101,11 @@ export function ConnectionDialog({
           <div className="trust-card">
             <ShieldCheck size={20} />
             <div>
-              <strong>确认服务器主机密钥</strong>
+              <strong>{t("确认服务器主机密钥")}</strong>
               <p>
-                请通过服务器控制台或管理员核对以下 SHA256 指纹。确认后 Paldeck
-                会保存公钥，后续发生变化时将拒绝连接。
+                {t(
+                  "请通过服务器控制台或管理员核对以下 SHA256 指纹。确认后 Paldeck 会保存公钥，后续发生变化时将拒绝连接。",
+                )}
               </p>
               <code>{trust.fingerprint}</code>
             </div>
@@ -126,7 +130,7 @@ export function ConnectionDialog({
               }}
               disabled={saving}
             >
-              指纹一致，信任并继续
+              {t("指纹一致，信任并继续")}
             </button>
           </div>
         )}
@@ -136,13 +140,13 @@ export function ConnectionDialog({
         <div className="security-note">
           <ShieldCheck size={18} />
           <span>
-            密码不会持久化；服务器公钥和非敏感连接信息会保存在本机。
+            {t("密码不会持久化；服务器公钥和非敏感连接信息会保存在本机。")}
           </span>
         </div>
 
         <footer className="dialog__footer">
           <button className="button button--ghost" onClick={onClose}>
-            取消
+            {t("取消")}
           </button>
           <button
             className="button button--primary"
@@ -150,7 +154,7 @@ export function ConnectionDialog({
             onClick={() => void saveAfterProbe(draft)}
           >
             <KeyRound size={17} />
-            {saving ? "正在测试…" : "保存并测试连接"}
+            {t(saving ? "正在测试…" : "保存并测试连接")}
           </button>
         </footer>
       </section>

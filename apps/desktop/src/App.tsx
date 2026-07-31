@@ -16,13 +16,17 @@ import {
 import { profileNeedsPassword } from "./lib/profile";
 import { loadProfile, saveProfile } from "./lib/profileStore";
 import type { ServerProfile } from "./types/server";
+import { useI18n } from "./i18n/I18nContext";
 
 export function App() {
+  const { t, errorMessage } = useI18n();
   const [page, setPage] = useState<PageId>("dashboard");
   const [profile, setProfile] = useState<ServerProfile | null>(() =>
-    loadProfile(),
+    loadProfile(t("我的帕鲁服务器")),
   );
-  const [setupOpen, setSetupOpen] = useState(() => loadProfile() === null);
+  const [setupOpen, setSetupOpen] = useState(
+    () => loadProfile(t("我的帕鲁服务器")) === null,
+  );
   const [connectionOpen, setConnectionOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -40,7 +44,7 @@ export function App() {
       case "logs":
         return <LogsPage />;
       case "settings":
-        return <SettingsPage onSaved={() => setNotice("配置草稿已保存")} />;
+        return <SettingsPage onSaved={() => setNotice(t("配置草稿已保存"))} />;
       case "backups":
         return <BackupsPage />;
       default:
@@ -52,29 +56,29 @@ export function App() {
             onComposeAction={async (action) => {
               const result = await runComposeAction(profile, action);
               if (!result.success) {
-                throw new Error(result.stderr || "远程 Compose 操作失败");
+                throw new Error(errorMessage(result.stderr || t("远程 Compose 操作失败")));
               }
               setNotice(
                 isDesktopRuntime()
-                  ? "远程 Compose 操作已完成"
-                  : "Preview：桌面运行时中才会执行远程操作",
+                  ? t("远程 Compose 操作已完成")
+                  : t("Preview：桌面运行时中才会执行远程操作"),
               );
             }}
             onSaveWorld={async () => {
               const result = await runServerAction(profile, "save");
               if (!result.success) {
-                throw new Error(result.stderr || "保存世界失败");
+                throw new Error(errorMessage(result.stderr || t("保存世界失败")));
               }
               setNotice(
                 isDesktopRuntime()
-                  ? "世界保存完成"
-                  : "Preview：桌面运行时中才会发送保存命令",
+                  ? t("世界保存完成")
+                  : t("Preview：桌面运行时中才会发送保存命令"),
               );
             }}
           />
         );
     }
-  }, [page, profile]);
+  }, [page, profile, t, errorMessage]);
 
   if (setupOpen || !profile) {
     return (
@@ -84,7 +88,7 @@ export function App() {
           saveProfile(nextProfile);
           setProfile(nextProfile);
           setSetupOpen(false);
-          setNotice("服务器初始化配置已保存");
+          setNotice(t("服务器初始化配置已保存"));
         }}
       />
     );
@@ -112,8 +116,8 @@ export function App() {
           setConnectionOpen(false);
           setNotice(
             isDesktopRuntime()
-              ? "SSH 连接测试成功"
-              : "Preview：配置已保存，桌面运行时才会连接 SSH",
+              ? t("SSH 连接测试成功")
+              : t("Preview：配置已保存，桌面运行时才会连接 SSH"),
           );
         }}
       />

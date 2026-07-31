@@ -8,10 +8,12 @@ import {
 import { useState } from "react";
 import { formatTime } from "../lib/format";
 import { mockLogs } from "../lib/mockData";
+import { useI18n } from "../i18n/I18nContext";
 
 export function LogsPage() {
   const [paused, setPaused] = useState(false);
   const [query, setQuery] = useState("");
+  const { t, locale } = useI18n();
   const logs = mockLogs.filter((entry) =>
     `${entry.source} ${entry.message}`
       .toLowerCase()
@@ -23,8 +25,8 @@ export function LogsPage() {
       <header className="page-header">
         <div>
           <span className="eyebrow">CONTAINER OUTPUT</span>
-          <h1>实时日志</h1>
-          <p>通过 SSH 流式读取 Compose 日志，并在本地进行过滤。</p>
+          <h1>{t("实时日志")}</h1>
+          <p>{t("通过 SSH 流式读取 Compose 日志，并在本地进行过滤。")}</p>
         </div>
         <div className="page-header__actions">
           <button
@@ -32,11 +34,11 @@ export function LogsPage() {
             onClick={() => setPaused(!paused)}
           >
             <CirclePause size={17} />
-            {paused ? "继续跟随" : "暂停"}
+            {t(paused ? "继续跟随" : "暂停")}
           </button>
           <button className="button button--ghost">
             <Download size={17} />
-            导出
+            {t("导出")}
           </button>
         </div>
       </header>
@@ -58,10 +60,10 @@ export function LogsPage() {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="过滤日志"
+                placeholder={t("过滤日志")}
               />
             </label>
-            <button title="清空本地显示">
+            <button title={t("清空本地显示")}>
               <Trash2 size={15} />
             </button>
           </div>
@@ -69,7 +71,7 @@ export function LogsPage() {
         <div className="terminal-output">
           {logs.map((entry) => (
             <div className="log-line" key={entry.id}>
-              <time>{formatTime(entry.timestamp)}</time>
+              <time>{formatTime(entry.timestamp, locale)}</time>
               <span className={`log-level log-level--${entry.level}`}>
                 {entry.level.toUpperCase()}
               </span>
@@ -78,7 +80,7 @@ export function LogsPage() {
             </div>
           ))}
           <div className="terminal-cursor">
-            <span>等待远程日志</span>
+            <span>{t("等待远程日志")}</span>
             {!paused && <i />}
           </div>
         </div>

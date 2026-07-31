@@ -23,6 +23,7 @@ import { formatDateTime, formatTime, formatUptime } from "../lib/format";
 import { mockLogs, mockPlayers } from "../lib/mockData";
 import type { ServerSnapshot } from "../types/server";
 import type { ComposeAction } from "../types/server";
+import { useI18n } from "../i18n/I18nContext";
 
 interface DashboardPageProps {
   snapshot: ServerSnapshot;
@@ -40,6 +41,7 @@ export function DashboardPage({
   onSaveWorld,
 }: DashboardPageProps) {
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const { t, locale, errorMessage } = useI18n();
 
   const performAction = async (
     action: string,
@@ -49,7 +51,7 @@ export function DashboardPage({
     try {
       await operation();
     } catch (error) {
-      onNotice(error instanceof Error ? error.message : "操作失败");
+      onNotice(errorMessage(error));
     } finally {
       setBusyAction(null);
     }
@@ -60,13 +62,13 @@ export function DashboardPage({
       <header className="page-header">
         <div>
           <span className="eyebrow">SERVER OVERVIEW</span>
-          <h1>早上好，管理员</h1>
-          <p>你的世界运行稳定，现在有 {snapshot.onlinePlayers} 位玩家在线。</p>
+          <h1>{t("早上好，管理员")}</h1>
+          <p>{t("你的世界运行稳定，现在有 {count} 位玩家在线。", { count: snapshot.onlinePlayers })}</p>
         </div>
         <div className="page-header__actions">
           <button className="button button--ghost" onClick={onOpenLogs}>
             <FileTerminal size={17} />
-            查看日志
+            {t("查看日志")}
           </button>
           <button
             className="button button--primary"
@@ -76,7 +78,7 @@ export function DashboardPage({
               size={17}
               className={busyAction === "save" ? "spin" : undefined}
             />
-            保存世界
+            {t("保存世界")}
           </button>
         </div>
       </header>
@@ -98,7 +100,7 @@ export function DashboardPage({
         <div className="hero-card__content">
           <div className="hero-card__status">
             <StatusPill status={snapshot.status} />
-            <span>世界第 {snapshot.worldDay} 天</span>
+            <span>{t("世界第 {day} 天", { day: snapshot.worldDay })}</span>
           </div>
           <h2>{snapshot.serverName}</h2>
           <p>
@@ -111,16 +113,16 @@ export function DashboardPage({
               <Users size={17} />
               <span>
                 <strong>{snapshot.onlinePlayers}</strong> / {snapshot.maxPlayers}{" "}
-                玩家
+                {t("玩家")}
               </span>
             </div>
             <div>
               <Clock3 size={17} />
-              <span>{formatUptime(snapshot.metrics.uptimeSeconds)}</span>
+              <span>{formatUptime(snapshot.metrics.uptimeSeconds, locale)}</span>
             </div>
             <div>
               <Archive size={17} />
-              <span>{formatDateTime(snapshot.lastBackupAt)}</span>
+              <span>{formatDateTime(snapshot.lastBackupAt, locale)}</span>
             </div>
           </div>
         </div>
@@ -128,7 +130,7 @@ export function DashboardPage({
         <div className="hero-card__controls">
           <button
             className="round-action round-action--positive"
-            title="启动"
+            title={t("启动")}
             onClick={() =>
               performAction("start", () => onComposeAction("start"))
             }
@@ -137,7 +139,7 @@ export function DashboardPage({
           </button>
           <button
             className="round-action"
-            title="重启"
+            title={t("重启")}
             onClick={() =>
               performAction("restart", () => onComposeAction("restart"))
             }
@@ -149,14 +151,14 @@ export function DashboardPage({
           </button>
           <button
             className="round-action round-action--danger"
-            title="停止"
+            title={t("停止")}
             onClick={() =>
               performAction("stop", () => onComposeAction("stop"))
             }
           >
             <Square size={16} fill="currentColor" />
           </button>
-          <button className="round-action" title="更多">
+          <button className="round-action" title={t("更多")}>
             <MoreHorizontal size={19} />
           </button>
         </div>
@@ -167,7 +169,7 @@ export function DashboardPage({
           icon={Cpu}
           label="CPU"
           value={`${snapshot.metrics.cpuPercent}%`}
-          detail="4 核 · 负载正常"
+          detail={t("4 核 · 负载正常")}
           tone="mint"
           footer={
             <div className="spark-bars">
@@ -181,9 +183,9 @@ export function DashboardPage({
         />
         <MetricCard
           icon={MemoryStick}
-          label="内存"
+          label={t("内存")}
           value={`${snapshot.metrics.memoryUsedGb} GB`}
-          detail={`共 ${snapshot.metrics.memoryTotalGb} GB`}
+          detail={t("共 {value} GB", { value: snapshot.metrics.memoryTotalGb })}
           tone="sky"
           footer={
             <div className="progress-track">
@@ -201,27 +203,27 @@ export function DashboardPage({
         />
         <MetricCard
           icon={Activity}
-          label="服务端 FPS"
+          label={t("服务端 FPS")}
           value={snapshot.metrics.fps.toFixed(1)}
-          detail="目标 60 FPS"
+          detail={t("目标 60 FPS")}
           tone="violet"
           footer={
             <div className="metric-trend metric-trend--good">
               <Zap size={13} fill="currentColor" />
-              稳定
+              {t("稳定")}
             </div>
           }
         />
         <MetricCard
           icon={Database}
-          label="最近备份"
+          label={t("最近备份")}
           value="284 MB"
-          detail={formatDateTime(snapshot.lastBackupAt)}
+          detail={formatDateTime(snapshot.lastBackupAt, locale)}
           tone="amber"
           footer={
             <div className="metric-trend">
               <Archive size={13} />
-              自动备份
+              {t("自动备份")}
             </div>
           }
         />
@@ -232,10 +234,10 @@ export function DashboardPage({
           <header className="panel__header">
             <div>
               <span className="eyebrow">LIVE PLAYERS</span>
-              <h3>在线玩家</h3>
+              <h3>{t("在线玩家")}</h3>
             </div>
             <button className="text-button">
-              查看全部 <ArrowUpRight size={14} />
+              {t("查看全部")} <ArrowUpRight size={14} />
             </button>
           </header>
           <div className="player-list player-list--compact">
@@ -267,7 +269,7 @@ export function DashboardPage({
           <header className="panel__header">
             <div>
               <span className="eyebrow">RECENT ACTIVITY</span>
-              <h3>最近活动</h3>
+              <h3>{t("最近活动")}</h3>
             </div>
             <button className="icon-button" onClick={onOpenLogs}>
               <MoreHorizontal size={18} />
@@ -282,7 +284,7 @@ export function DashboardPage({
                 <div>
                   <strong>{entry.message}</strong>
                   <span>
-                    {entry.source} · {formatTime(entry.timestamp)}
+                    {entry.source} · {formatTime(entry.timestamp, locale)}
                   </span>
                 </div>
               </div>
@@ -294,8 +296,9 @@ export function DashboardPage({
       <div className="preview-banner">
         <ServerCog size={17} />
         <span>
-          当前显示演示数据。保存 SSH 连接后，Rust 后端会读取远程 Compose 和 REST
-          API 的真实状态。
+          {t(
+            "当前显示演示数据。保存 SSH 连接后，Rust 后端会读取远程 Compose 和 REST API 的真实状态。",
+          )}
         </span>
       </div>
     </div>

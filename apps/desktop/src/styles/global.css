@@ -255,6 +255,45 @@ select:focus-visible {
   border-top: 1px solid var(--border);
 }
 
+.language-select {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  gap: 8px;
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.language-select svg {
+  flex: 0 0 auto;
+  color: var(--mint);
+}
+
+.language-select select {
+  min-width: 0;
+  margin-left: auto;
+  color: var(--text);
+  font-size: 9px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+}
+
+.language-select--compact {
+  margin-bottom: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.language-select--compact > span {
+  display: none;
+}
+
 .sidebar-status,
 .sidebar-version {
   display: flex;
@@ -1376,6 +1415,10 @@ select:focus-visible {
   background: var(--mint-dim);
 }
 
+.settings-nav > .language-select {
+  margin-top: 8px;
+}
+
 .settings-content {
   display: flex;
   flex-direction: column;
@@ -1922,6 +1965,10 @@ select:focus-visible {
   gap: 24px;
   padding: 20px 24px;
   border-bottom: 1px solid var(--border);
+}
+
+.setup-header > .language-select {
+  flex: 0 0 auto;
 }
 
 .setup-brand {
@@ -2479,6 +2526,11 @@ select:focus-visible {
 
   .settings-nav__item {
     flex: 0 0 auto;
+  }
+
+  .settings-nav > .language-select {
+    flex: 0 0 auto;
+    margin-top: 0;
   }
 
   .range-grid,

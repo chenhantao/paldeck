@@ -1,6 +1,7 @@
 import { Eye, EyeOff, KeyRound, TerminalSquare } from "lucide-react";
 import { useState } from "react";
 import type { ServerProfile } from "../types/server";
+import { useI18n } from "../i18n/I18nContext";
 
 interface ConnectionFieldsProps {
   profile: ServerProfile;
@@ -15,10 +16,11 @@ export function ConnectionFields({
 }: ConnectionFieldsProps) {
   const [showPassword, setShowPassword] = useState(false);
   const auth = profile.auth;
+  const { t } = useI18n();
 
   return (
     <>
-      <div className="auth-tabs" role="tablist" aria-label="登录方式">
+      <div className="auth-tabs" role="tablist" aria-label={t("登录方式")}>
         <button
           type="button"
           className={
@@ -35,7 +37,7 @@ export function ConnectionFields({
           disabled={disabled}
         >
           <TerminalSquare size={17} />
-          OpenSSH 配置 / 密钥
+          {t("OpenSSH 配置 / 密钥")}
         </button>
         <button
           type="button"
@@ -59,19 +61,19 @@ export function ConnectionFields({
           disabled={disabled}
         >
           <KeyRound size={17} />
-          账号密码
+          {t("账号密码")}
         </button>
       </div>
 
       <div className="form-grid">
         <label className="field">
-          <span>显示名称</span>
+          <span>{t("显示名称")}</span>
           <input
             value={profile.name}
             onChange={(event) =>
               onChange({ ...profile, name: event.target.value })
             }
-            placeholder="我的帕鲁服务器"
+            placeholder={t("我的帕鲁服务器")}
             disabled={disabled}
           />
         </label>
@@ -98,7 +100,7 @@ export function ConnectionFields({
         ) : (
           <>
             <label className="field">
-              <span>服务器地址</span>
+              <span>{t("服务器地址")}</span>
               <input
                 value={auth.host}
                 onChange={(event) =>
@@ -117,7 +119,7 @@ export function ConnectionFields({
               />
             </label>
             <label className="field">
-              <span>SSH 端口</span>
+              <span>{t("SSH 端口")}</span>
               <input
                 type="number"
                 min={1}
@@ -137,7 +139,7 @@ export function ConnectionFields({
               />
             </label>
             <label className="field">
-              <span>账号</span>
+              <span>{t("账号")}</span>
               <input
                 value={auth.username}
                 onChange={(event) =>
@@ -155,7 +157,7 @@ export function ConnectionFields({
               />
             </label>
             <label className="field field--wide">
-              <span>密码</span>
+              <span>{t("密码")}</span>
               <div className="password-field">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -169,28 +171,28 @@ export function ConnectionFields({
                       },
                     })
                   }
-                  placeholder="仅保存在当前运行会话"
+                  placeholder={t("仅保存在当前运行会话")}
                   autoComplete="current-password"
                   disabled={disabled}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((visible) => !visible)}
-                  aria-label={showPassword ? "隐藏密码" : "显示密码"}
+                  aria-label={t(showPassword ? "隐藏密码" : "显示密码")}
                   disabled={disabled}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
               <small className="field__hint">
-                Paldeck 不会把登录密码写入本地配置或日志。
+                {t("Paldeck 不会把登录密码写入本地配置或日志。")}
               </small>
             </label>
           </>
         )}
 
         <label className="field field--wide">
-          <span>远程部署目录</span>
+          <span>{t("远程部署目录")}</span>
           <input
             value={profile.remotePath}
             onChange={(event) =>
@@ -201,8 +203,9 @@ export function ConnectionFields({
             disabled={disabled}
           />
           <small className="field__hint">
-            默认为 ~/.palworld。目录必须不存在或完全为空；不接受 .、..、非规范路径
-            或经过符号链接的目录。
+            {t(
+              "默认为 ~/.palworld。目录必须不存在或完全为空；不接受 .、..、非规范路径或经过符号链接的目录。",
+            )}
           </small>
         </label>
       </div>

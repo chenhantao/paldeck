@@ -12,9 +12,11 @@ import {
 import { useState } from "react";
 import { formatTime } from "../lib/format";
 import { mockPlayers } from "../lib/mockData";
+import { useI18n } from "../i18n/I18nContext";
 
 export function PlayersPage() {
   const [query, setQuery] = useState("");
+  const { t, locale } = useI18n();
   const filteredPlayers = mockPlayers.filter((player) =>
     player.name.toLowerCase().includes(query.toLowerCase()),
   );
@@ -24,29 +26,29 @@ export function PlayersPage() {
       <header className="page-header">
         <div>
           <span className="eyebrow">PLAYER MANAGEMENT</span>
-          <h1>玩家</h1>
-          <p>查看在线状态，并通过 Palworld REST API 管理当前玩家。</p>
+          <h1>{t("玩家")}</h1>
+          <p>{t("查看在线状态，并通过 Palworld REST API 管理当前玩家。")}</p>
         </div>
         <button className="button button--primary">
           <MessageSquareText size={17} />
-          广播消息
+          {t("广播消息")}
         </button>
       </header>
 
       <div className="summary-strip">
         <div>
           <Users size={18} />
-          <span>当前在线</span>
+          <span>{t("当前在线")}</span>
           <strong>3</strong>
         </div>
         <div>
           <Clock3 size={18} />
-          <span>今日峰值</span>
+          <span>{t("今日峰值")}</span>
           <strong>6</strong>
         </div>
         <div>
           <Shield size={18} />
-          <span>已封禁</span>
+          <span>{t("已封禁")}</span>
           <strong>0</strong>
         </div>
       </div>
@@ -58,21 +60,21 @@ export function PlayersPage() {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索玩家名称"
+              placeholder={t("搜索玩家名称")}
             />
           </label>
           <button className="button button--ghost">
             <MoreHorizontal size={17} />
-            更多操作
+            {t("更多操作")}
           </button>
         </div>
 
         <div className="data-table">
           <div className="data-table__head">
-            <span>玩家</span>
-            <span>平台与等级</span>
-            <span>加入时间</span>
-            <span>延迟</span>
+            <span>{t("玩家")}</span>
+            <span>{t("平台与等级")}</span>
+            <span>{t("加入时间")}</span>
+            <span>{t("延迟")}</span>
             <span />
           </div>
           {filteredPlayers.map((player) => (
@@ -90,16 +92,16 @@ export function PlayersPage() {
               <span>
                 {player.platform} · Lv.{player.level}
               </span>
-              <span>{formatTime(player.joinedAt)}</span>
+              <span>{formatTime(player.joinedAt, locale)}</span>
               <span className="table-ping">
                 <Signal size={14} />
                 {player.pingMs} ms
               </span>
               <div className="row-actions">
-                <button title="踢出玩家">
+                <button title={t("踢出玩家")}>
                   <UserMinus size={16} />
                 </button>
-                <button title="封禁玩家" className="danger">
+                <button title={t("封禁玩家")} className="danger">
                   <Ban size={16} />
                 </button>
               </div>

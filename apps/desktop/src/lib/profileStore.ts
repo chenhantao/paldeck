@@ -2,7 +2,7 @@ import type { ServerProfile } from "../types/server";
 
 const PROFILE_KEY = "paldeck.server-profile.v1";
 
-export function loadProfile(): ServerProfile | null {
+export function loadProfile(defaultName = "我的帕鲁服务器"): ServerProfile | null {
   try {
     const serialized = window.localStorage.getItem(PROFILE_KEY);
     if (!serialized) return null;
@@ -14,7 +14,7 @@ export function loadProfile(): ServerProfile | null {
         ? (stored as ServerProfile)
         : {
             id: stored.id ?? crypto.randomUUID(),
-            name: stored.name ?? "我的帕鲁服务器",
+            name: stored.name ?? defaultName,
             auth: {
               kind: "openssh",
               sshHost: stored.sshHost ?? "",
