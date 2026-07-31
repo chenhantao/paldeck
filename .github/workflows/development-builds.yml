@@ -88,14 +88,23 @@ jobs:
         run: npm ci
 
       - name: Build macOS application
-        run: npm run tauri --workspace @paldeck/desktop -- build --target aarch64-apple-darwin --bundles app --no-sign
+        env:
+          APPLE_SIGNING_IDENTITY: "-"
+        run: >
+          npm run tauri --workspace @paldeck/desktop -- build
+          --target aarch64-apple-darwin --bundles app
+
+      - name: Verify macOS bundle signature
+        run: >
+          codesign --verify --deep --strict --verbose=2
+          apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Paldeck.app
 
       - name: Prepare macOS package
         run: |
           output="${RUNNER_TEMP}/paldeck-macos-arm64"
           mkdir -p "${output}"
           app="apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Paldeck.app"
-          ditto -c -k --sequesterRsrc --keepParent "${app}" "${output}/Paldeck-macos-arm64-unsigned.zip"
+          ditto -c -k --sequesterRsrc --keepParent "${app}" "${output}/Paldeck-macos-arm64-ad-hoc.zip"
 
       - name: Upload macOS package
         uses: actions/upload-artifact@v7

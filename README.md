@@ -116,19 +116,24 @@ cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
 
 ## Downloading development builds
 
-Every push to `develop` triggers unsigned native builds on GitHub-hosted
+Every push to `develop` triggers native development builds on GitHub-hosted
 Windows, macOS, and Linux runners. When the workflow completes, open
 **Actions → Development builds → the relevant run → Artifacts** and download:
 
 - `Paldeck-windows-x64-development`: an NSIS installer and portable-preview ZIP
-- `Paldeck-macos-arm64-development`: an unsigned Apple Silicon `.app` ZIP
+- `Paldeck-macos-arm64-development`: an ad-hoc-signed Apple Silicon `.app` ZIP
 - `Paldeck-linux-x64-development`: AppImage and Debian packages
 
 Development artifacts are retained for 14 days and do not create a GitHub
 Release. The Windows portable preview packages the plain Tauri executable; the
 target computer still needs Microsoft Edge WebView2 Runtime, and Tauri does
 not guarantee a fully portable mode. None of the development packages are
-code-signed, so the operating system may display origin or security warnings.
+signed with a trusted Developer ID. The macOS package receives a complete
+ad-hoc signature and is verified before upload, but it is not notarized by
+Apple. macOS may therefore
+require manually allowing the app in **System Settings → Privacy & Security**.
+Windows and Linux packages are not code-signed, so those operating systems may
+also display origin or security warnings.
 
 Formal releases will be published separately from version tags on `master`;
 development-branch artifacts will not be promoted as releases.

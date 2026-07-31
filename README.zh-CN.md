@@ -104,17 +104,19 @@ cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
 ## 下载开发版
 
 推送到 `develop` 分支后，GitHub Actions 会在 Windows、macOS 和 Linux
-原生 Runner 上构建未签名的开发包。构建完成后，进入仓库的
+原生 Runner 上构建开发包。构建完成后，进入仓库的
 **Actions → Development builds → 对应运行记录 → Artifacts** 下载：
 
 - `Paldeck-windows-x64-development`：NSIS 安装包和绿色版预览 ZIP。
-- `Paldeck-macos-arm64-development`：未签名的 Apple Silicon `.app` ZIP。
+- `Paldeck-macos-arm64-development`：使用 ad-hoc 签名的 Apple Silicon `.app` ZIP。
 - `Paldeck-linux-x64-development`：AppImage 和 Debian 软件包。
 
 开发产物保留 14 天，不会创建 GitHub Release。Windows 绿色版是 Tauri 裸
 可执行文件的预览打包，目标机器仍需具备 Microsoft Edge WebView2 Runtime；
-Tauri 不保证完整的 portable 模式。所有开发包均未进行代码签名，操作系统可能
-显示来源或安全警告。
+Tauri 不保证完整的 portable 模式。开发包均没有受信任的 Developer ID；macOS
+包会在上传前完成 ad-hoc 签名和严格校验，但未经 Apple 公证，因此仍可能需要在
+**系统设置 → 隐私与安全性**中手动允许。Windows 与 Linux 包未进行代码签名，
+操作系统也可能显示来源或安全警告。
 
 正式版本将在未来从 `master` 的版本标签单独发布，不使用开发分支产物。
 
