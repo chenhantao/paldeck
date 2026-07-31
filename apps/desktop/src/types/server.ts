@@ -42,7 +42,11 @@ export interface EnvironmentInspection {
   dockerInstalled: boolean;
   dockerUsable: boolean;
   composeInstalled: boolean;
+  pathSafe: boolean;
   directoryExists: boolean;
+  directoryEmpty: boolean;
+  managedDirectory: boolean;
+  unexpectedEntries: boolean;
   composeExists: boolean;
   envExists: boolean;
   deploymentValid: boolean;
@@ -53,6 +57,7 @@ export interface InitializationOptions {
   serverName: string;
   serverPassword: string;
   adminPassword: string;
+  dataDirectory: string;
   players: number;
   startAfterInstall: boolean;
 }

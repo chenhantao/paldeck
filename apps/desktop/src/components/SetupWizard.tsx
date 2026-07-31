@@ -38,6 +38,7 @@ const defaultOptions: InitializationOptions = {
   serverName: "My Palworld Server",
   serverPassword: "",
   adminPassword: "",
+  dataDirectory: "./palworld",
   players: 8,
   startAfterInstall: false,
 };
@@ -108,7 +109,11 @@ export function SetupWizard({
       const result = await initializeRemoteServer(profile, options);
       if (!result.success) {
         const refreshed = await inspectEnvironment(profile);
-        if (refreshed.composeExists && refreshed.envExists) {
+        if (
+          refreshed.managedDirectory &&
+          refreshed.composeExists &&
+          refreshed.envExists
+        ) {
           setInspection(refreshed);
           setStep("environment");
           setError(
@@ -128,11 +133,16 @@ export function SetupWizard({
   };
 
   const existingDeployment = Boolean(
-    inspection?.composeExists &&
+    inspection?.managedDirectory &&
+      inspection.composeExists &&
       inspection.envExists &&
       inspection.deploymentValid,
   );
   const environmentReady = isEnvironmentReady(inspection);
+  const canInitialize = Boolean(
+    inspection?.pathSafe &&
+      (!inspection.directoryExists || inspection.directoryEmpty),
+  );
 
   return (
     <div className="setup-screen">
@@ -267,15 +277,26 @@ export function SetupWizard({
                 <CheckItem
                   label="部署目录"
                   value={
-                    inspection.directoryExists
-                      ? `${profile.remotePath} 已存在`
-                      : "将自动创建"
+                    !inspection.pathSafe
+                      ? "路径不安全"
+                      : inspection.managedDirectory
+                        ? "由 Paldeck 管理"
+                        : inspection.directoryExists
+                          ? inspection.directoryEmpty
+                            ? "已存在且为空"
+                            : "非空且不受管理"
+                          : "不存在，将安全创建"
                   }
-                  ok
+                  ok={Boolean(
+                    inspection.pathSafe &&
+                      (inspection.managedDirectory ||
+                        !inspection.directoryExists ||
+                        inspection.directoryEmpty),
+                  )}
                 />
               </div>
 
-              {(inspection.composeExists || inspection.envExists) && (
+              {inspection.managedDirectory && (
                 <div
                   className={
                     existingDeployment
@@ -292,14 +313,40 @@ export function SetupWizard({
                     <strong>
                       {existingDeployment
                         ? "发现有效的 Paldeck 部署"
-                        : inspection.composeExists && inspection.envExists
-                          ? "部署文件存在，但配置验证失败"
-                          : "目录中只有部分部署文件"}
+                        : "Paldeck 管理目录不完整或配置无效"}
                     </strong>
                     <p>
                       {existingDeployment
-                        ? "可以直接接管，现有 compose.yaml 和 .env 不会被覆盖。"
-                        : "为防止数据损坏，Paldeck 不会自动覆盖。请检查远程目录中的 Compose 配置。"}
+                        ? "管理标记、compose.yaml 和 .env 均已验证，可以继续使用。"
+                        : "Paldeck 不会自动覆盖或重建该目录。请先检查远程目录中的管理标记和部署文件。"}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {inspection.directoryExists &&
+                !inspection.directoryEmpty &&
+                !inspection.managedDirectory && (
+                  <div className="setup-callout setup-callout--warning">
+                    <CircleAlert size={20} />
+                    <div>
+                      <strong>目录非空且没有 Paldeck 管理标记</strong>
+                      <p>
+                        为避免碰到同名目录中的其他文件，Paldeck 拒绝初始化，也不会
+                        接管、移动或删除其中的任何内容。请改用不存在的目录或空目录。
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+              {inspection.managedDirectory && inspection.unexpectedEntries && (
+                <div className="setup-callout setup-callout--warning">
+                  <CircleAlert size={20} />
+                  <div>
+                    <strong>管理目录中存在额外文件</strong>
+                    <p>
+                      Paldeck 只管理标记文件、compose.yaml、.env、配置备份和
+                      palworld 数据目录；额外文件会原样保留。
                     </p>
                   </div>
                 </div>
@@ -330,8 +377,9 @@ export function SetupWizard({
                   <span className="eyebrow">SERVER CONFIGURATION</span>
                   <h1>创建服务器配置</h1>
                   <p>
-                    初始化会上传仓库内置的 Compose 模板，在远程目录生成权限为
-                    600 的 `.env`。
+                    初始化只允许使用不存在或完全为空的目录，并会写入 Paldeck
+                    管理标记、内置 Compose 模板和权限为 600 的 `.env`。游戏数据
+                    只能保存在部署目录内由你指定的安全子目录。
                   </p>
                 </div>
               </div>
@@ -397,6 +445,25 @@ export function SetupWizard({
                     disabled={busy}
                   />
                 </label>
+                <label className="field">
+                  <span>游戏数据子目录</span>
+                  <input
+                    value={options.dataDirectory}
+                    onChange={(event) =>
+                      setOptions({
+                        ...options,
+                        dataDirectory: event.target.value,
+                      })
+                    }
+                    placeholder="./palworld"
+                    spellCheck={false}
+                    disabled={busy}
+                  />
+                  <small className="field__hint">
+                    必须以 ./ 开头，仅允许字母、数字、点、横线、下划线和斜杠；
+                    不允许绝对路径、空格、.. 或符号链接。
+                  </small>
+                </label>
                 <label className="setup-checkbox">
                   <input
                     type="checkbox"
@@ -425,6 +492,10 @@ export function SetupWizard({
                 <div>
                   <span>运行平台</span>
                   <strong>linux/amd64</strong>
+                </div>
+                <div>
+                  <span>数据子目录</span>
+                  <strong>{options.dataDirectory}</strong>
                 </div>
               </div>
             </>
@@ -514,13 +585,12 @@ export function SetupWizard({
                   className="button button--primary"
                   onClick={() => setStep("complete")}
                 >
-                  接管现有部署
+                  使用现有 Paldeck 部署
                   <ChevronRight size={17} />
                 </button>
               )}
             {step === "environment" &&
-              !inspection?.composeExists &&
-              !inspection?.envExists &&
+              canInitialize &&
               environmentReady && (
                 <button
                   className="button button--primary"
@@ -538,6 +608,7 @@ export function SetupWizard({
                   busy ||
                   options.adminPassword.length < 8 ||
                   !options.serverName.trim() ||
+                  !isSafeDataDirectory(options.dataDirectory) ||
                   options.players < 1 ||
                   options.players > 32
                 }
@@ -611,6 +682,17 @@ function isConnectionComplete(profile: ServerProfile): boolean {
       profile.auth.port >= 1 &&
       profile.auth.port <= 65535,
   );
+}
+
+function isSafeDataDirectory(path: string): boolean {
+  if (!path.startsWith("./") || path.length <= 2 || path.endsWith("/")) {
+    return false;
+  }
+  if (!/^[A-Za-z0-9._/-]+$/.test(path)) return false;
+  return path
+    .slice(2)
+    .split("/")
+    .every((segment) => segment !== "" && segment !== "." && segment !== "..");
 }
 
 function setupStepIndex(step: SetupStep): number {

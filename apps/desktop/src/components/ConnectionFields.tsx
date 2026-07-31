@@ -201,7 +201,8 @@ export function ConnectionFields({
             disabled={disabled}
           />
           <small className="field__hint">
-            默认为当前远程账号家目录下的 ~/.palworld。
+            默认为 ~/.palworld。目录必须不存在或完全为空；不接受 .、..、非规范路径
+            或经过符号链接的目录。
           </small>
         </label>
       </div>

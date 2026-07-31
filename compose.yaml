@@ -3,7 +3,7 @@
 # Configuration values can be supplied as shell environment variables or in a
 # .env file next to this file. ADMIN_PASSWORD is intentionally required.
 # Persistent server files, saves, configuration, and backups are stored under
-# PALWORLD_DATA_DIR (./palworld by default).
+# PALWORLD_DATA_DIR selects a safe relative subdirectory under this deployment.
 
 name: palworld
 

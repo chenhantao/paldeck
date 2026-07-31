@@ -13,6 +13,9 @@ use crate::models::{Authentication, CommandResult, ConnectionProbe, ServerProfil
 
 const SSH_TIMEOUT: Duration = Duration::from_secs(30);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
+pub const MANAGED_MARKER_FILE: &str = ".paldeck-managed";
+pub const MANAGED_MARKER_CONTENT: &str = "PALDECK_MANAGED_DIRECTORY_V1";
+const COMPOSE_TEMPLATE: &str = include_str!("../../../../compose.yaml");
 
 pub fn validate_profile(profile: &ServerProfile) -> Result<(), String> {
     validate_authentication(&profile.auth)?;
@@ -93,6 +96,17 @@ fn validate_remote_path(path: &str) -> Result<(), String> {
     if path.len() > 4096 || path.contains(['\0', '\n', '\r']) {
         return Err("远程目录包含无效字符".into());
     }
+    if path.ends_with('/') || path.contains('\\') {
+        return Err("远程目录必须使用规范的 Linux 路径".into());
+    }
+
+    let relative = path.strip_prefix("~/").unwrap_or_else(|| &path[1..]);
+    if relative
+        .split('/')
+        .any(|segment| segment.is_empty() || segment == "." || segment == "..")
+    {
+        return Err("远程目录不能包含空段、. 或 ..".into());
+    }
     Ok(())
 }
 
@@ -100,13 +114,57 @@ pub fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\"'\"'"))
 }
 
-pub fn remote_path_expression(path: &str) -> Result<String, String> {
+pub fn remote_directory_assignment(path: &str) -> Result<String, String> {
     validate_remote_path(path)?;
     if let Some(relative) = path.strip_prefix("~/") {
-        Ok(format!("\"$HOME\"/{}", shell_quote(relative)))
+        Ok(format!(
+            "paldeck_home=\"$(realpath -e -- \"$HOME\")\"; paldeck_dir=\"$paldeck_home\"/{}",
+            shell_quote(relative)
+        ))
     } else {
-        Ok(shell_quote(path))
+        Ok(format!("paldeck_dir={}", shell_quote(path)))
     }
+}
+
+pub fn compose_template_hash() -> String {
+    format!("{:x}", Sha256::digest(COMPOSE_TEMPLATE.as_bytes()))
+}
+
+pub fn data_directory_check(env_file: &str) -> String {
+    format!(
+        "paldeck_data_safe=0; paldeck_data_relative=''; paldeck_env_file={env_file}; \
+         paldeck_data_count=\"$(grep -c '^PALWORLD_DATA_DIR=' \"$paldeck_env_file\" 2>/dev/null || true)\"; \
+         if [ \"$paldeck_data_count\" = 1 ]; then \
+           paldeck_data_value=\"$(sed -n 's/^PALWORLD_DATA_DIR=//p' \"$paldeck_env_file\")\"; \
+           case \"$paldeck_data_value\" in \
+             ./*) paldeck_data_relative=\"${{paldeck_data_value#./}}\" ;; \
+             *) paldeck_data_relative='' ;; \
+           esac; \
+           case \"$paldeck_data_value\" in \
+             */|*[!A-Za-z0-9._/-]*) paldeck_data_relative='' ;; \
+           esac; \
+           case \"/$paldeck_data_relative/\" in \
+             *//*|*/./*|*/../*) paldeck_data_relative='' ;; \
+           esac; \
+           if [ -n \"$paldeck_data_relative\" ]; then \
+             paldeck_data_path=\"$paldeck_dir/$paldeck_data_relative\"; \
+             paldeck_data_resolved=\"$(realpath -m -- \"$paldeck_data_path\" 2>/dev/null || true)\"; \
+             if [ \"$paldeck_data_resolved\" = \"$paldeck_data_path\" ]; then \
+               if [ ! -e \"$paldeck_data_path\" ]; then paldeck_data_safe=1; \
+               elif [ -d \"$paldeck_data_path\" ] && [ ! -L \"$paldeck_data_path\" ]; then paldeck_data_safe=1; fi; \
+             fi; \
+           fi; \
+         fi"
+    )
+}
+
+pub fn data_directory_guard(env_file: &str) -> String {
+    format!(
+        "{}; if [ \"$paldeck_data_safe\" != 1 ]; then \
+           printf 'PALWORLD_DATA_DIR 必须是部署目录内的安全相对子目录，且不能经过符号链接。\\n' >&2; exit 74; \
+         fi",
+        data_directory_check(env_file)
+    )
 }
 
 pub async fn probe_connection(profile: ServerProfile) -> Result<ConnectionProbe, String> {
@@ -349,15 +407,52 @@ fn authenticate_password(session: &Session, username: &str, password: &str) -> R
 }
 
 pub fn in_compose_directory(profile: &ServerProfile, command: &str) -> Result<String, String> {
+    let assignment = remote_directory_assignment(&profile.remote_path)?;
+    let data_guard = data_directory_guard("./.env");
     Ok(format!(
-        "cd -- {} && {command}",
-        remote_path_expression(&profile.remote_path)?
+        "set -eu; {assignment}; \
+         paldeck_resolved=\"$(realpath -m -- \"$paldeck_dir\")\"; \
+         if [ \"$paldeck_resolved\" != \"$paldeck_dir\" ]; then \
+           printf '远程目录包含符号链接或解析后位置发生变化。\\n' >&2; exit 74; \
+         fi; \
+         if [ ! -d \"$paldeck_dir\" ] || [ -L \"$paldeck_dir\" ]; then \
+           printf '远程部署目录不存在或不是安全目录。\\n' >&2; exit 74; \
+         fi; \
+         cd -P -- \"$paldeck_dir\"; \
+         if [ \"$PWD\" != \"$paldeck_dir\" ]; then \
+           printf '无法确认远程部署目录。\\n' >&2; exit 74; \
+         fi; \
+         if [ ! -f {marker} ] || [ -L {marker} ] || ! grep -Fqx {marker_content} {marker} || \
+            [ \"$(grep -c '^COMPOSE_SHA256=' {marker} || true)\" != 1 ]; then \
+           printf '目录不是由 Paldeck 创建或管理标记无效。\\n' >&2; exit 74; \
+         fi; \
+         paldeck_marker_hash=\"$(sed -n 's/^COMPOSE_SHA256=//p' {marker})\"; \
+         case \"$paldeck_marker_hash\" in *[!0-9a-f]*) paldeck_marker_hash='' ;; esac; \
+         if [ \"${{#paldeck_marker_hash}}\" != 64 ]; then \
+           printf 'Paldeck 管理标记中的 Compose 摘要无效。\\n' >&2; exit 74; \
+         fi; \
+         if [ ! -f ./compose.yaml ] || [ -L ./compose.yaml ] || \
+            [ ! -f ./.env ] || [ -L ./.env ]; then \
+           printf '受管部署文件缺失或包含符号链接。\\n' >&2; exit 74; \
+         fi; \
+         paldeck_compose_digest=\"$(sha256sum -- ./compose.yaml 2>/dev/null || true)\"; \
+         paldeck_compose_digest=\"${{paldeck_compose_digest%% *}}\"; \
+         if [ \"$paldeck_compose_digest\" != \"$paldeck_marker_hash\" ]; then \
+           printf 'compose.yaml 与 Paldeck 初始化记录不一致，已拒绝执行。\\n' >&2; exit 74; \
+         fi; \
+         {data_guard}; \
+         {command}",
+        marker = shell_quote(MANAGED_MARKER_FILE),
+        marker_content = shell_quote(MANAGED_MARKER_CONTENT),
     ))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{remote_path_expression, shell_quote, validate_profile};
+    use super::{
+        compose_template_hash, in_compose_directory, remote_directory_assignment, shell_quote,
+        validate_profile,
+    };
     use crate::models::{Authentication, ServerProfile};
 
     fn openssh_profile(host: &str, path: &str) -> ServerProfile {
@@ -398,6 +493,23 @@ mod tests {
     }
 
     #[test]
+    fn rejects_remote_path_traversal_and_non_canonical_forms() {
+        for path in [
+            "~/../outside",
+            "~/.palworld/./data",
+            "/opt/paldeck/../../etc",
+            "/opt//paldeck",
+            "/opt/paldeck/",
+            "~/.palworld\\data",
+        ] {
+            assert!(
+                validate_profile(&openssh_profile("palworld-server", path)).is_err(),
+                "accepted unsafe path: {path}"
+            );
+        }
+    }
+
+    #[test]
     fn validates_password_profile_without_logging_credentials() {
         assert!(validate_profile(&password_profile(22)).is_ok());
     }
@@ -410,13 +522,48 @@ mod tests {
     #[test]
     fn expands_home_relative_path_safely() {
         assert_eq!(
-            remote_path_expression("~/.palworld").unwrap(),
-            "\"$HOME\"/'.palworld'"
+            remote_directory_assignment("~/.palworld").unwrap(),
+            "paldeck_home=\"$(realpath -e -- \"$HOME\")\"; paldeck_dir=\"$paldeck_home\"/'.palworld'"
         );
     }
 
     #[test]
     fn quotes_single_quotes_for_remote_shell() {
         assert_eq!(shell_quote("/srv/a'b"), "'/srv/a'\"'\"'b'");
+    }
+
+    #[test]
+    fn managed_commands_require_marker_and_reject_symlinks() {
+        let command = in_compose_directory(
+            &openssh_profile("palworld-server", "~/.palworld"),
+            "printf ok",
+        )
+        .unwrap();
+        assert!(command.contains("PALDECK_MANAGED_DIRECTORY_V1"));
+        assert!(command.contains("COMPOSE_SHA256="));
+        assert!(command.contains("PALWORLD_DATA_DIR"));
+        assert!(command.contains("[ -L ./compose.yaml ]"));
+    }
+
+    #[test]
+    fn compose_template_hash_is_sha256_hex() {
+        let hash = compose_template_hash();
+        assert_eq!(hash.len(), 64);
+        assert!(hash.chars().all(|character| character.is_ascii_hexdigit()));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn managed_command_has_valid_shell_syntax() {
+        let command = in_compose_directory(
+            &openssh_profile("palworld-server", "~/.palworld"),
+            "printf ok",
+        )
+        .unwrap();
+        let status = std::process::Command::new("sh")
+            .args(["-n", "-c", &command])
+            .status()
+            .unwrap();
+        assert!(status.success());
     }
 }

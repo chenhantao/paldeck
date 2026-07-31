@@ -1,92 +1,107 @@
 # Paldeck
 
-Paldeck 是一个面向 Palworld 独立服务器的开源部署方案与桌面管理客户端。
-服务器通过 Docker Compose 运行，桌面端通过 SSH 执行经过白名单限制的管理操作。
+English | [简体中文](README.zh-CN.md)
+
+Paldeck is an open-source deployment toolkit and desktop management client for
+Palworld dedicated servers. The server runs with Docker Compose, while the
+desktop client performs allowlisted management operations over SSH.
 
 > [!IMPORTANT]
-> 项目仍处于早期开发阶段。首次初始化与基础 Compose 操作已经接入真实后端；
-> 总览指标、玩家、备份和部分世界配置目前仍使用演示数据。
+> Paldeck is still in early development. The first-time setup flow and basic
+> Compose operations use the real backend; dashboard metrics, players,
+> backups, and parts of the world settings still use demonstration data.
 
-## 功能
+## Features
 
-- 使用 Docker Compose 部署 Palworld 独立服务器
-- 通过 `.env` 配置常用服务器、网络、备份和世界参数
-- 提供基于 Tauri 2、React 和 Rust 的跨平台桌面客户端
-- 首次使用向导检查 Linux、amd64、Docker 与 Compose 环境
-- 支持复用系统 OpenSSH 配置，或直接使用服务器账号密码
-- 可接管有效的现有部署，或安全创建新的远程部署
-- 对远程路径和 Compose 操作进行白名单验证
-- 默认将部署文件保存到远程账号的 `~/.palworld`
-- 默认仅将 Palworld REST API 绑定至服务器回环地址
+- Deploy a Palworld dedicated server with Docker Compose
+- Configure common server, network, backup, and world options through `.env`
+- Manage servers from a cross-platform Tauri 2, React, and Rust desktop client
+- Inspect Linux, amd64, Docker, and Compose during first-time setup
+- Reuse an OpenSSH configuration or connect with a server username and password
+- Reopen deployments carrying a Paldeck management marker, or safely create a new one
+- Validate remote paths and Compose operations against strict allowlists
+- Store deployment files in `~/.palworld` for the remote account by default
+- Bind the Palworld REST API to the server loopback interface by default
 
-## 项目结构
+## Repository layout
 
 ```text
 .
-├── .env.example                 # 可公开的服务器配置模板
-├── compose.yaml                 # Palworld Docker Compose 服务
+├── .env.example                 # Public server configuration template
+├── compose.yaml                 # Palworld Docker Compose service
 ├── apps/
 │   └── desktop/
-│       ├── src/                 # React + TypeScript 前端
-│       └── src-tauri/           # Tauri/Rust 桌面后端
-├── .github/                     # CI、Issue 与依赖更新配置
-└── package.json                 # npm workspace 入口
+│       ├── src/                 # React + TypeScript frontend
+│       └── src-tauri/           # Tauri/Rust desktop backend
+├── .github/                     # CI, issue, and dependency update configuration
+└── package.json                 # npm workspace entry point
 ```
 
-## 部署服务器
+## Deploying the server
 
-目标主机需要是 `x86_64/amd64` Linux，并已安装 Docker Engine 与 Docker
-Compose 插件。
+The target host must run `x86_64/amd64` Linux and have Docker Engine and the
+Docker Compose plugin installed.
 
 ```bash
 cp .env.example .env
 ```
 
-编辑 `.env`，至少将 `ADMIN_PASSWORD` 改成强密码。部署前可检查最终配置：
+Edit `.env` and, at minimum, replace `ADMIN_PASSWORD` with a strong password.
+Validate the resolved configuration before deployment:
 
 ```bash
 docker compose config
 ```
 
-确认无误后启动：
+Start the server after reviewing the result:
 
 ```bash
 docker compose up -d
 ```
 
-服务器存档、配置和备份默认保存在仓库目录下的 `palworld/`，该目录不会被
-Git 跟踪。
+Server saves, configuration, and backups are stored in the deployment-local
+directory selected by `PALWORLD_DATA_DIR` (`./palworld` by default). It must
+remain a safe relative subdirectory beneath the deployment root. Git does not
+track the default directory.
 
-## 桌面端开发
+## Desktop development
 
-需要 Node.js 22+、npm、Rust stable，以及 Tauri 2 对应的系统依赖。
+Development requires Node.js 22+, npm, stable Rust, and the system
+dependencies required by Tauri 2.
 
 ```bash
 npm install
 npm run dev
 ```
 
-`npm run dev` 只启动浏览器 Preview，不会执行 SSH 或 Docker 命令。启动
-Tauri 桌面窗口：
+`npm run dev` starts only the browser preview and does not run SSH or Docker
+commands. Start the Tauri desktop window with:
 
 ```bash
 npm run tauri -- dev
 ```
 
-只有 Tauri 桌面运行时会调用 Rust 后端，并尝试使用系统 `ssh`。
+Only the Tauri desktop runtime invokes the Rust backend and attempts SSH
+connections.
 
-首次启动桌面端会进入初始化向导：
+On first launch, the desktop client opens the setup wizard:
 
-1. 选择 OpenSSH 配置/密钥或账号密码登录。
-2. 账号密码模式首次连接时核对服务器 SHA256 主机密钥指纹。
-3. 检查远程系统、架构、Docker 权限和 Compose 插件。
-4. 接管已有有效部署，或在 `~/.palworld` 创建新部署。
-5. 生成 `.env`、执行 `docker compose config`，并按需启动服务。
+1. Choose an OpenSSH configuration/key or username-and-password login.
+2. For password login, verify the server's SHA256 host-key fingerprint on the
+   first connection.
+3. Inspect the remote system, architecture, Docker permissions, and Compose
+   plugin.
+4. Reopen a valid Paldeck-managed deployment, or initialize a directory that
+   does not exist or is completely empty.
+5. Choose a safe data subdirectory, write the management marker, generate
+   `.env`, validate the Compose files, and optionally start the server.
 
-账号密码模式底层同样使用 SSH 协议。登录密码只保留在当前应用会话中，不会写入
-浏览器存储或本地配置；服务器公开主机密钥和其他非敏感连接信息会持久化。
+Username-and-password login still uses the SSH protocol. The password remains
+only in the current application session and is never written to browser
+storage or local configuration. The public server host key and other
+non-sensitive connection details may be persisted.
 
-常用检查：
+Common checks:
 
 ```bash
 npm run check
@@ -94,48 +109,69 @@ npm run build
 cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
 ```
 
-## 下载开发版
+## Downloading development builds
 
-推送到 `develop` 分支后，GitHub Actions 会在 Windows、macOS 和 Linux
-原生 Runner 上构建未签名的开发包。构建完成后，进入仓库的
-**Actions → Development builds → 对应运行记录 → Artifacts** 下载：
+Every push to `develop` triggers unsigned native builds on GitHub-hosted
+Windows, macOS, and Linux runners. When the workflow completes, open
+**Actions → Development builds → the relevant run → Artifacts** and download:
 
-- `Paldeck-windows-x64-development`：NSIS 安装包和绿色版预览 ZIP。
-- `Paldeck-macos-arm64-development`：未签名的 Apple Silicon `.app` ZIP。
-- `Paldeck-linux-x64-development`：AppImage 和 Debian 软件包。
+- `Paldeck-windows-x64-development`: an NSIS installer and portable-preview ZIP
+- `Paldeck-macos-arm64-development`: an unsigned Apple Silicon `.app` ZIP
+- `Paldeck-linux-x64-development`: AppImage and Debian packages
 
-开发产物保留 14 天，不会创建 GitHub Release。Windows 绿色版是 Tauri 裸
-可执行文件的预览打包，目标机器仍需具备 Microsoft Edge WebView2 Runtime；
-Tauri 不保证完整的 portable 模式。所有开发包均未进行代码签名，操作系统可能
-显示来源或安全警告。
+Development artifacts are retained for 14 days and do not create a GitHub
+Release. The Windows portable preview packages the plain Tauri executable; the
+target computer still needs Microsoft Edge WebView2 Runtime, and Tauri does
+not guarantee a fully portable mode. None of the development packages are
+code-signed, so the operating system may display origin or security warnings.
 
-正式版本将在未来从 `master` 的版本标签单独发布，不使用开发分支产物。
+Formal releases will be published separately from version tags on `master`;
+development-branch artifacts will not be promoted as releases.
 
-## 安全边界
+## Security boundaries
 
-- 不要提交 `.env`、SSH 私钥、服务器地址、密码或真实存档。
-- SSH Host、账号密码连接参数和远程路径会在 Rust 层验证。
-- 账号密码模式会固定首次确认的服务器主机公钥，密钥变化时拒绝连接。
-- Compose 与服务器操作使用固定白名单，不提供任意远程命令入口。
-- SSH 使用批处理模式，并设置连接与操作超时。
-- 初始化拒绝覆盖已有 `compose.yaml` 或 `.env`。
-- `.env` 更新会先写入临时文件，验证 Compose 配置后再原子替换。
-- 不建议将 Palworld REST API 直接暴露到公网。
+- Never commit `.env`, SSH private keys, server addresses, passwords, or real
+  game saves.
+- The Rust layer validates SSH hosts, password-login parameters, and remote
+  paths.
+- Password login pins the server public host key after first confirmation and
+  rejects later key changes.
+- Compose and server operations use fixed allowlists and do not expose an
+  arbitrary remote command interface.
+- SSH uses batch mode where applicable and enforces connection and operation
+  timeouts.
+- Initialization writes `.paldeck-managed` only after validation succeeds and
+  records the SHA-256 digest of the installed Compose template.
+  A non-empty directory without that marker is refused and left untouched.
+- Remote paths reject traversal and non-canonical forms. The custom data path
+  must start with `./`, remain below the deployment directory, use a restricted
+  character set, and must not traverse symbolic links.
+- Compose operations explicitly use the managed directory, `.env`, and
+  `compose.yaml`. Before every managed operation, Paldeck verifies the recorded
+  Compose digest and the resolved `PALWORLD_DATA_DIR` boundary.
+- `.env` updates are written to a temporary file, validated through Compose,
+  and then replaced atomically.
+- Do not expose the Palworld REST API directly to the public internet.
 
-安全问题请不要创建公开 Issue，参见 [SECURITY.md](SECURITY.md)。
+Do not report security issues through a public issue. See
+[SECURITY.md](SECURITY.md).
 
-## 参与贡献
+## Contributing
 
-欢迎提交缺陷报告、功能建议和 Pull Request。开始之前请阅读
-[CONTRIBUTING.md](CONTRIBUTING.md) 和 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
+Bug reports, feature proposals, and pull requests are welcome. Read
+[CONTRIBUTING.md](CONTRIBUTING.md) and
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) before contributing.
 
-## 声明
+## Disclaimer
 
-Paldeck 是非官方社区项目，与 Pocketpair, Inc. 无隶属、认可或赞助关系。
-Palworld 及相关名称和素材归其各自权利人所有。
-应用图标使用了官方 PALWORLD 字标作为兼容对象标识，该字标不包含在本项目的
-MIT 许可证中。详见 [TRADEMARKS.md](TRADEMARKS.md)。
+Paldeck is an unofficial community project and is not affiliated with,
+endorsed by, or sponsored by Pocketpair, Inc. Palworld and related names and
+materials belong to their respective rights holders.
 
-## 许可证
+The application icon uses the official PALWORLD wordmark to identify the
+compatible game. The wordmark is not included under this project's MIT
+License. See [TRADEMARKS.md](TRADEMARKS.md).
 
-项目以 [MIT License](LICENSE) 发布。
+## License
+
+This project is released under the [MIT License](LICENSE).
