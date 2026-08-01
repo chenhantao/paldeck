@@ -16,6 +16,11 @@ tauri-build = { version = "2", features = [] }
 base64 = "0.22"
 serde = { version = "1", features = ["derive"] }
 sha2 = "0.10"
-ssh2 = "0.9"
 tauri = { version = "2", features = [] }
 tokio = { version = "1", features = ["process", "time"] }
+
+[target.'cfg(unix)'.dependencies]
+ssh2 = { version = "0.9", features = ["vendored-openssl"] }
+
+[target.'cfg(windows)'.dependencies]
+ssh2 = "0.9"

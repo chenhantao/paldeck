@@ -1,4 +1,5 @@
 import type { ServerProfile } from "../types/server";
+import { createUuid } from "./id";
 
 const PROFILE_KEY = "paldeck.server-profile.v1";
 
@@ -13,7 +14,7 @@ export function loadProfile(defaultName = "我的帕鲁服务器"): ServerProfil
       stored.auth && stored.id && stored.name && stored.remotePath
         ? (stored as ServerProfile)
         : {
-            id: stored.id ?? crypto.randomUUID(),
+            id: stored.id ?? createUuid(),
             name: stored.name ?? defaultName,
             auth: {
               kind: "openssh",

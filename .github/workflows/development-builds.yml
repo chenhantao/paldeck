@@ -40,6 +40,25 @@ jobs:
       - name: Build Windows application
         run: npm run tauri --workspace @paldeck/desktop -- build --target x86_64-pc-windows-msvc --bundles nsis
 
+      - name: Smoke-test Windows application
+        shell: pwsh
+        run: |
+          $executable = (Resolve-Path "apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/paldeck.exe").Path
+          $process = Start-Process -FilePath $executable -PassThru
+          try {
+            Start-Sleep -Seconds 5
+            $process.Refresh()
+            if ($process.HasExited) {
+              throw "Paldeck exited during startup with code $($process.ExitCode)."
+            }
+          } finally {
+            $process.Refresh()
+            if (-not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+              Wait-Process -Id $process.Id -ErrorAction SilentlyContinue
+            }
+          }
+
       - name: Prepare Windows packages
         shell: pwsh
         run: |
@@ -94,17 +113,49 @@ jobs:
           npm run tauri --workspace @paldeck/desktop -- build
           --target aarch64-apple-darwin --bundles app
 
-      - name: Verify macOS bundle signature
-        run: >
-          codesign --verify --deep --strict --verbose=2
-          apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Paldeck.app
+      - name: Verify macOS bundle
+        run: |
+          set -eu
+          app="apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Paldeck.app"
+          executable="${app}/Contents/MacOS/paldeck"
+          codesign --verify --deep --strict --verbose=2 "${app}"
+
+          unexpected="$(otool -L "${executable}" | awk 'NR > 1 { print $1 }' | grep -Ev '^(/System/Library/|/usr/lib/|@rpath/|@loader_path/|@executable_path/)' || true)"
+          if [ -n "${unexpected}" ]; then
+            printf 'Unexpected non-system dynamic dependencies:\n%s\n' "${unexpected}" >&2
+            exit 1
+          fi
+
+      - name: Smoke-test macOS application
+        run: |
+          set -eu
+          executable="apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Paldeck.app/Contents/MacOS/paldeck"
+          log_file="${RUNNER_TEMP}/paldeck-macos-smoke.log"
+          "${executable}" >"${log_file}" 2>&1 &
+          pid=$!
+          cleanup() {
+            kill "${pid}" 2>/dev/null || true
+            wait "${pid}" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          sleep 5
+          if ! kill -0 "${pid}" 2>/dev/null; then
+            cat "${log_file}" >&2
+            printf 'Paldeck exited during macOS startup.\n' >&2
+            exit 1
+          fi
 
       - name: Prepare macOS package
         run: |
           output="${RUNNER_TEMP}/paldeck-macos-arm64"
           mkdir -p "${output}"
           app="apps/desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Paldeck.app"
-          ditto -c -k --sequesterRsrc --keepParent "${app}" "${output}/Paldeck-macos-arm64-ad-hoc.zip"
+          archive="${output}/Paldeck-macos-arm64-ad-hoc.zip"
+          ditto -c -k --sequesterRsrc --keepParent "${app}" "${archive}"
+
+          verification_dir="$(mktemp -d "${RUNNER_TEMP}/paldeck-macos-verify.XXXXXX")"
+          ditto -x -k "${archive}" "${verification_dir}"
+          codesign --verify --deep --strict --verbose=2 "${verification_dir}/Paldeck.app"
 
       - name: Upload macOS package
         uses: actions/upload-artifact@v7
@@ -141,13 +192,27 @@ jobs:
             librsvg2-dev \
             libssl-dev \
             patchelf \
-            pkg-config
+            pkg-config \
+            xvfb
 
       - name: Install dependencies
         run: npm ci
 
       - name: Build Linux application
         run: npm run tauri --workspace @paldeck/desktop -- build --bundles appimage,deb
+
+      - name: Smoke-test Linux application
+        run: |
+          set +e
+          timeout 8s xvfb-run -a apps/desktop/src-tauri/target/release/paldeck \
+            >"${RUNNER_TEMP}/paldeck-linux-smoke.log" 2>&1
+          status=$?
+          set -e
+          if [ "${status}" -ne 124 ]; then
+            cat "${RUNNER_TEMP}/paldeck-linux-smoke.log" >&2
+            printf 'Paldeck exited during Linux startup with code %s.\n' "${status}" >&2
+            exit 1
+          fi
 
       - name: Prepare Linux packages
         run: |

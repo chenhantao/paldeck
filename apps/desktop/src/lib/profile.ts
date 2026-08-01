@@ -1,8 +1,9 @@
 import type { ServerProfile } from "../types/server";
+import { createUuid } from "./id";
 
 export function createDefaultProfile(name = "我的帕鲁服务器"): ServerProfile {
   return {
-    id: crypto.randomUUID(),
+    id: createUuid(),
     name,
     auth: {
       kind: "openssh",

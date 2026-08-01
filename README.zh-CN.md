@@ -64,6 +64,8 @@ docker compose up -d
 
 需要 Node.js 22+、npm、Rust stable，以及 Tauri 2 对应的系统依赖。
 
+Apple Silicon 桌面版本要求 macOS 11 或更高版本。
+
 ```bash
 npm install
 npm run dev
@@ -117,6 +119,9 @@ Tauri 不保证完整的 portable 模式。开发包均没有受信任的 Develo
 包会在上传前完成 ad-hoc 签名和严格校验，但未经 Apple 公证，因此仍可能需要在
 **系统设置 → 隐私与安全性**中手动允许。Windows 与 Linux 包未进行代码签名，
 操作系统也可能显示来源或安全警告。
+
+每个平台的开发包在上传前都必须通过启动存活测试。macOS 任务还会拒绝非系统
+动态库，并在解压最终 ZIP 后再次验证签名。
 
 正式版本将在未来从 `master` 的版本标签单独发布，不使用开发分支产物。
 

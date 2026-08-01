@@ -70,6 +70,8 @@ track the default directory.
 Development requires Node.js 22+, npm, stable Rust, and the system
 dependencies required by Tauri 2.
 
+The Apple Silicon desktop build requires macOS 11 or later.
+
 ```bash
 npm install
 npm run dev
@@ -130,10 +132,14 @@ target computer still needs Microsoft Edge WebView2 Runtime, and Tauri does
 not guarantee a fully portable mode. None of the development packages are
 signed with a trusted Developer ID. The macOS package receives a complete
 ad-hoc signature and is verified before upload, but it is not notarized by
-Apple. macOS may therefore
-require manually allowing the app in **System Settings → Privacy & Security**.
+Apple. macOS may therefore require manually allowing the app in
+**System Settings → Privacy & Security**.
 Windows and Linux packages are not code-signed, so those operating systems may
 also display origin or security warnings.
+
+Each development build must remain running for a startup smoke test before it
+is uploaded. The macOS job also rejects non-system dynamic libraries and
+rechecks the signature after extracting the final ZIP.
 
 Formal releases will be published separately from version tags on `master`;
 development-branch artifacts will not be promoted as releases.

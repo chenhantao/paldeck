@@ -33,10 +33,14 @@ function systemLocale(): AppLocale {
 }
 
 function loadPreference(): LanguagePreference {
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  return stored === "zh-CN" || stored === "en" || stored === "system"
-    ? stored
-    : "system";
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    return stored === "zh-CN" || stored === "en" || stored === "system"
+      ? stored
+      : "system";
+  } catch {
+    return "system";
+  }
 }
 
 function translate(
@@ -123,7 +127,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, [locale]);
 
   const setPreference = useCallback((next: LanguagePreference) => {
-    window.localStorage.setItem(STORAGE_KEY, next);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      // Keep the in-memory preference when WebView storage is unavailable.
+    }
     setPreferenceState(next);
   }, []);
 
