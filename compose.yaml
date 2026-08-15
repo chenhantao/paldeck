@@ -9,7 +9,7 @@ name: palworld
 
 services:
   palworld:
-    image: thijsvanloef/palworld-server-docker:${PALWORLD_IMAGE_TAG:-2.5.0}
+    image: thijsvanloef/palworld-server-docker:${PALWORLD_IMAGE_TAG:-v2.5.0}
     platform: linux/amd64
     container_name: palworld-server
     restart: unless-stopped

@@ -1,9 +1,11 @@
 use std::time::Duration;
 
 use base64::prelude::{Engine as _, BASE64_STANDARD};
+use serde_json::Value;
 
 use crate::models::{
-    CommandResult, ConnectionProbe, EnvironmentInspection, InitializationOptions, ServerProfile,
+    BackupEntry, CommandResult, ConnectionProbe, EnvironmentInspection, InitializationOptions,
+    OnlinePlayer, ServerProfile, ServerSnapshot, WorldSettingsInput, WorldSettingsOutput,
 };
 use crate::remote::{
     compose_template_hash, data_directory_check, data_directory_guard, in_compose_directory,
@@ -238,6 +240,204 @@ pub async fn inspect_server(profile: ServerProfile) -> Result<CommandResult, Str
 }
 
 #[tauri::command]
+pub async fn server_snapshot(profile: ServerProfile) -> Result<ServerSnapshot, String> {
+    let script = server_snapshot_script();
+    let command = in_compose_directory(&profile, &script)?;
+    let result = run_remote(&profile, &command).await?;
+    if !result.success {
+        return Err(command_error(&result, "无法读取服务器状态"));
+    }
+
+    let remote_status =
+        inspection_value(&result.stdout, "PALDECK_STATUS").unwrap_or_else(|| "unknown".into());
+    let status = match remote_status.as_str() {
+        "running" => "online",
+        "created" | "restarting" => "starting",
+        "exited" | "dead" | "offline" => "offline",
+        _ => "unknown",
+    }
+    .to_string();
+    let stats = decoded_json_value(&result.stdout, "PALDECK_STATS");
+    let info = decoded_json_value(&result.stdout, "PALDECK_INFO");
+    let metrics = decoded_json_value(&result.stdout, "PALDECK_METRICS");
+
+    let (memory_used_bytes, memory_limit_bytes) = stats
+        .as_ref()
+        .and_then(|value| value.get("MemUsage").and_then(Value::as_str))
+        .and_then(parse_memory_usage)
+        .map(|(used, limit)| (Some(used), Some(limit)))
+        .unwrap_or((None, None));
+
+    Ok(ServerSnapshot {
+        status,
+        server_name: json_string(&info, "servername"),
+        version: json_string(&info, "version"),
+        online_players: json_u64(&metrics, "currentplayernum"),
+        max_players: json_u64(&metrics, "maxplayernum"),
+        world_day: json_u64(&metrics, "days"),
+        cpu_percent: stats
+            .as_ref()
+            .and_then(|value| value.get("CPUPerc").and_then(Value::as_str))
+            .and_then(|value| value.trim_end_matches('%').parse().ok()),
+        memory_used_bytes,
+        memory_limit_bytes,
+        fps: json_f64(&metrics, "serverfps"),
+        uptime_seconds: json_u64(&metrics, "uptime"),
+        rest_available: info.is_some() && metrics.is_some(),
+    })
+}
+
+fn server_snapshot_script() -> String {
+    format!(
+        "container_id=\"$({COMPOSE_COMMAND} ps -q palworld 2>/dev/null || true)\"; \
+         if [ -n \"$container_id\" ]; then \
+           paldeck_status=\"$(docker inspect --format '{{{{.State.Status}}}}' \"$container_id\" 2>/dev/null || printf unknown)\"; \
+           paldeck_stats=\"$(docker stats --no-stream --format '{{{{json .}}}}' \"$container_id\" 2>/dev/null || true)\"; \
+         else paldeck_status=offline; paldeck_stats=''; fi; \
+         if [ \"$paldeck_status\" = running ]; then \
+           paldeck_info=\"$({COMPOSE_COMMAND} exec -T palworld rest-cli info --no-flush-log 2>/dev/null || true)\"; \
+           paldeck_metrics=\"$({COMPOSE_COMMAND} exec -T palworld rest-cli metrics --no-flush-log 2>/dev/null || true)\"; \
+         else paldeck_info=''; paldeck_metrics=''; fi; \
+         printf 'PALDECK_STATUS=%s\\n' \"$paldeck_status\"; \
+         printf 'PALDECK_STATS=%s\\n' \"$(printf %s \"$paldeck_stats\" | base64 | tr -d '\\n')\"; \
+         printf 'PALDECK_INFO=%s\\n' \"$(printf %s \"$paldeck_info\" | base64 | tr -d '\\n')\"; \
+         printf 'PALDECK_METRICS=%s\\n' \"$(printf %s \"$paldeck_metrics\" | base64 | tr -d '\\n')\""
+    )
+}
+
+#[tauri::command]
+pub async fn online_players(profile: ServerProfile) -> Result<Vec<OnlinePlayer>, String> {
+    let command = in_compose_directory(
+        &profile,
+        &format!("{COMPOSE_COMMAND} exec -T palworld rest-cli players --no-flush-log"),
+    )?;
+    let result = run_remote(&profile, &command).await?;
+    if !result.success {
+        return Err(command_error(&result, "无法读取在线玩家"));
+    }
+    let payload: Value = serde_json::from_str(result.stdout.trim())
+        .map_err(|error| format!("玩家接口返回了无效数据：{error}"))?;
+    let players = payload
+        .get("players")
+        .and_then(Value::as_array)
+        .ok_or_else(|| "玩家接口缺少 players 数组".to_string())?;
+    Ok(players
+        .iter()
+        .filter_map(|player| {
+            let user_id = player.get("userId")?.as_str()?.to_string();
+            Some(OnlinePlayer {
+                id: user_id,
+                player_id: player
+                    .get("playerId")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                name: player
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .unwrap_or("Unknown")
+                    .to_string(),
+                account_name: player
+                    .get("accountName")
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_string(),
+                ping_ms: player.get("ping").and_then(Value::as_f64).unwrap_or(0.0),
+                level: player.get("level").and_then(Value::as_u64).unwrap_or(0),
+            })
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub async fn player_action(
+    profile: ServerProfile,
+    action: String,
+    user_id: Option<String>,
+    message: String,
+) -> Result<CommandResult, String> {
+    if message.len() > 512 || message.contains(['\0', '\n', '\r']) {
+        return Err("消息长度或内容无效".into());
+    }
+    let (api, payload) = match action.as_str() {
+        "announce" => {
+            if message.trim().is_empty() {
+                return Err("广播消息不能为空".into());
+            }
+            ("announce", serde_json::json!({ "message": message }))
+        }
+        "kick" | "ban" => {
+            let id = user_id.ok_or_else(|| "缺少玩家 ID".to_string())?;
+            if id.is_empty()
+                || id.len() > 128
+                || !id
+                    .chars()
+                    .all(|character| character.is_ascii_alphanumeric() || "_:-".contains(character))
+            {
+                return Err("玩家 ID 无效".into());
+            }
+            (
+                action.as_str(),
+                serde_json::json!({ "userid": id, "message": message }),
+            )
+        }
+        _ => return Err("不支持的玩家操作".into()),
+    };
+    let payload = serde_json::to_string(&payload).map_err(|error| error.to_string())?;
+    let command = in_compose_directory(
+        &profile,
+        &format!(
+            "{COMPOSE_COMMAND} exec -T palworld rest-cli {api} {} --no-flush-log",
+            shell_quote(&payload)
+        ),
+    )?;
+    run_remote(&profile, &command).await
+}
+
+#[tauri::command]
+pub async fn list_backups(profile: ServerProfile) -> Result<Vec<BackupEntry>, String> {
+    let data_guard = data_directory_guard("./.env");
+    let script = format!(
+        "{data_guard}; backup_dir=\"$paldeck_data_path/backups\"; \
+         if [ ! -e \"$backup_dir\" ]; then exit 0; fi; \
+         if [ ! -d \"$backup_dir\" ] || [ -L \"$backup_dir\" ]; then \
+           printf '备份目录不是安全的普通目录。\\n' >&2; exit 74; fi; \
+         find \"$backup_dir\" -maxdepth 1 -type f ! -lname '*' \
+           -printf '%T@\\t%s\\t%f\\n' | sort -nr | head -n 100"
+    );
+    let command = in_compose_directory(&profile, &script)?;
+    let result = run_remote(&profile, &command).await?;
+    if !result.success {
+        return Err(command_error(&result, "无法读取备份列表"));
+    }
+    result
+        .stdout
+        .lines()
+        .map(|line| {
+            let mut fields = line.splitn(3, '\t');
+            let modified = fields
+                .next()
+                .and_then(|value| value.split('.').next())
+                .and_then(|value| value.parse().ok())
+                .ok_or_else(|| "备份时间格式无效".to_string())?;
+            let size_bytes = fields
+                .next()
+                .and_then(|value| value.parse().ok())
+                .ok_or_else(|| "备份大小格式无效".to_string())?;
+            let filename = fields.next().ok_or_else(|| "备份名称缺失".to_string())?;
+            if filename.is_empty() || filename.contains(['/', '\0', '\n', '\r']) {
+                return Err("备份名称无效".into());
+            }
+            Ok(BackupEntry {
+                filename: filename.to_string(),
+                modified_unix: modified,
+                size_bytes,
+            })
+        })
+        .collect()
+}
+
+#[tauri::command]
 pub async fn compose_action(
     profile: ServerProfile,
     action: String,
@@ -278,7 +478,7 @@ pub async fn read_logs(profile: ServerProfile, tail: Option<u16>) -> Result<Comm
     let lines = tail.unwrap_or(300).clamp(1, 2_000);
     let command = in_compose_directory(
         &profile,
-        &format!("{COMPOSE_COMMAND} logs --no-color --tail {lines} palworld"),
+        &format!("{COMPOSE_COMMAND} logs --no-color --timestamps --tail {lines} palworld"),
     )?;
     run_remote(&profile, &command).await
 }
@@ -322,6 +522,199 @@ pub async fn write_env(profile: ServerProfile, contents: String) -> Result<Comma
     );
     let command = in_compose_directory(&profile, &script)?;
     run_remote(&profile, &command).await
+}
+
+#[tauri::command]
+pub async fn read_world_settings(profile: ServerProfile) -> Result<WorldSettingsOutput, String> {
+    let result = read_env(profile).await?;
+    if !result.success {
+        return Err(command_error(&result, "无法读取世界配置"));
+    }
+    Ok(WorldSettingsOutput {
+        server_name: env_string(&result.stdout, "SERVER_NAME")?,
+        server_description: env_string(&result.stdout, "SERVER_DESCRIPTION")?,
+        server_password: env_string(&result.stdout, "SERVER_PASSWORD")?,
+        max_players: env_parse(&result.stdout, "PLAYERS")?,
+        exp_rate: env_parse(&result.stdout, "EXP_RATE")?,
+        capture_rate: env_parse(&result.stdout, "PAL_CAPTURE_RATE")?,
+        spawn_rate: env_parse(&result.stdout, "PAL_SPAWN_NUM_RATE")?,
+        work_speed_rate: env_parse(&result.stdout, "WORK_SPEED_RATE")?,
+        egg_hatching_time: env_parse(&result.stdout, "PAL_EGG_DEFAULT_HATCHING_TIME")?,
+        death_penalty: env_string(&result.stdout, "DEATH_PENALTY")?,
+        pvp: env_bool(&result.stdout, "IS_PVP")?,
+        friendly_fire: env_bool(&result.stdout, "ENABLE_FRIENDLY_FIRE")?,
+        fast_travel: env_bool(&result.stdout, "ENABLE_FAST_TRAVEL")?,
+        allow_client_mod: env_bool(&result.stdout, "ALLOW_CLIENT_MOD")?,
+    })
+}
+
+#[tauri::command]
+pub async fn write_world_settings(
+    profile: ServerProfile,
+    settings: WorldSettingsInput,
+) -> Result<CommandResult, String> {
+    validate_world_settings(&settings)?;
+    let current = read_env(profile.clone()).await?;
+    if !current.success {
+        return Err(command_error(&current, "无法读取现有世界配置"));
+    }
+    let mut contents = current.stdout;
+    for (key, value) in [
+        ("SERVER_NAME", dotenv_quote(&settings.server_name)),
+        (
+            "SERVER_DESCRIPTION",
+            dotenv_quote(&settings.server_description),
+        ),
+        ("SERVER_PASSWORD", dotenv_quote(&settings.server_password)),
+        ("PLAYERS", settings.max_players.to_string()),
+        ("EXP_RATE", format_rate(settings.exp_rate)),
+        ("PAL_CAPTURE_RATE", format_rate(settings.capture_rate)),
+        ("PAL_SPAWN_NUM_RATE", format_rate(settings.spawn_rate)),
+        ("WORK_SPEED_RATE", format_rate(settings.work_speed_rate)),
+        (
+            "PAL_EGG_DEFAULT_HATCHING_TIME",
+            format_rate(settings.egg_hatching_time),
+        ),
+        ("DEATH_PENALTY", settings.death_penalty.clone()),
+        ("IS_PVP", settings.pvp.to_string()),
+        ("ENABLE_FRIENDLY_FIRE", settings.friendly_fire.to_string()),
+        ("ENABLE_FAST_TRAVEL", settings.fast_travel.to_string()),
+        ("ALLOW_CLIENT_MOD", settings.allow_client_mod.to_string()),
+    ] {
+        set_env_value(&mut contents, key, &value)?;
+    }
+    write_env(profile, contents).await
+}
+
+fn validate_world_settings(settings: &WorldSettingsInput) -> Result<(), String> {
+    if settings.server_name.trim().is_empty() || settings.server_name.len() > 128 {
+        return Err("服务器名称长度无效".into());
+    }
+    if settings.server_description.len() > 512 || settings.server_password.len() > 128 {
+        return Err("服务器描述或密码过长".into());
+    }
+    if !(1..=32).contains(&settings.max_players) {
+        return Err("玩家数量必须在 1 到 32 之间".into());
+    }
+    for value in [
+        settings.exp_rate,
+        settings.capture_rate,
+        settings.spawn_rate,
+        settings.work_speed_rate,
+        settings.egg_hatching_time,
+    ] {
+        if !value.is_finite() || !(0.0..=10.0).contains(&value) {
+            return Err("世界倍率必须在 0 到 10 之间".into());
+        }
+    }
+    if !["None", "Item", "ItemAndEquipment", "All"].contains(&settings.death_penalty.as_str()) {
+        return Err("死亡惩罚配置无效".into());
+    }
+    for value in [
+        &settings.server_name,
+        &settings.server_description,
+        &settings.server_password,
+    ] {
+        if value.contains(['\0', '\n', '\r']) {
+            return Err("世界配置不能包含换行或空字符".into());
+        }
+    }
+    Ok(())
+}
+
+fn format_rate(value: f64) -> String {
+    format!("{value:.6}")
+}
+
+fn env_raw<'a>(contents: &'a str, key: &str) -> Result<&'a str, String> {
+    let prefix = format!("{key}=");
+    contents
+        .lines()
+        .find_map(|line| line.strip_prefix(&prefix))
+        .ok_or_else(|| format!("环境配置缺少变量 {key}"))
+}
+
+fn env_string(contents: &str, key: &str) -> Result<String, String> {
+    let value = env_raw(contents, key)?;
+    if value.len() >= 2 && value.starts_with('\'') && value.ends_with('\'') {
+        Ok(value[1..value.len() - 1].replace("\\'", "'"))
+    } else if value.len() >= 2 && value.starts_with('"') && value.ends_with('"') {
+        Ok(value[1..value.len() - 1].to_string())
+    } else {
+        Ok(value.to_string())
+    }
+}
+
+fn env_parse<T: std::str::FromStr>(contents: &str, key: &str) -> Result<T, String> {
+    env_string(contents, key)?
+        .parse()
+        .map_err(|_| format!("环境配置变量 {key} 的值无效"))
+}
+
+fn env_bool(contents: &str, key: &str) -> Result<bool, String> {
+    match env_string(contents, key)?.to_ascii_lowercase().as_str() {
+        "true" | "1" => Ok(true),
+        "false" | "0" => Ok(false),
+        _ => Err(format!("环境配置变量 {key} 的布尔值无效")),
+    }
+}
+
+fn command_error(result: &CommandResult, fallback: &str) -> String {
+    if result.stderr.trim().is_empty() {
+        fallback.to_string()
+    } else {
+        result.stderr.trim().to_string()
+    }
+}
+
+fn decoded_json_value(output: &str, key: &str) -> Option<Value> {
+    let encoded = inspection_value(output, key)?;
+    if encoded.is_empty() {
+        return None;
+    }
+    let decoded = BASE64_STANDARD.decode(encoded).ok()?;
+    serde_json::from_slice(&decoded).ok()
+}
+
+fn json_string(value: &Option<Value>, key: &str) -> Option<String> {
+    value.as_ref()?.get(key)?.as_str().map(str::to_string)
+}
+
+fn json_u64(value: &Option<Value>, key: &str) -> Option<u64> {
+    value.as_ref()?.get(key)?.as_u64()
+}
+
+fn json_f64(value: &Option<Value>, key: &str) -> Option<f64> {
+    let number = value.as_ref()?.get(key)?;
+    number
+        .as_f64()
+        .or_else(|| number.as_u64().map(|value| value as f64))
+}
+
+fn parse_memory_usage(value: &str) -> Option<(u64, u64)> {
+    let (used, limit) = value.split_once('/')?;
+    Some((parse_size(used.trim())?, parse_size(limit.trim())?))
+}
+
+fn parse_size(value: &str) -> Option<u64> {
+    let split = value
+        .find(|character: char| !character.is_ascii_digit() && character != '.')
+        .unwrap_or(value.len());
+    let number: f64 = value[..split].parse().ok()?;
+    let unit = value[split..].trim().to_ascii_lowercase();
+    let multiplier = match unit.as_str() {
+        "b" | "" => 1.0,
+        "kb" => 1_000.0,
+        "kib" => 1_024.0,
+        "mb" => 1_000_000.0,
+        "mib" => 1_048_576.0,
+        "gb" => 1_000_000_000.0,
+        "gib" => 1_073_741_824.0,
+        "tb" => 1_000_000_000_000.0,
+        "tib" => 1_099_511_627_776.0,
+        _ => return None,
+    };
+    Some((number * multiplier).round() as u64)
 }
 
 fn inspection_value(output: &str, key: &str) -> Option<String> {
@@ -408,8 +801,10 @@ fn set_env_value(contents: &mut String, key: &str, value: &str) -> Result<(), St
 #[cfg(test)]
 mod tests {
     use super::{
-        dotenv_quote, inspection_flag, inspection_value, set_env_value, validate_data_directory,
+        dotenv_quote, env_bool, env_string, inspection_flag, inspection_value, parse_memory_usage,
+        server_snapshot_script, set_env_value, validate_data_directory, validate_world_settings,
     };
+    use crate::models::WorldSettingsInput;
 
     #[test]
     fn parses_environment_inspection() {
@@ -456,5 +851,51 @@ mod tests {
         ] {
             assert!(validate_data_directory(path).is_err(), "accepted {path}");
         }
+    }
+
+    #[test]
+    fn parses_docker_memory_units() {
+        assert_eq!(
+            parse_memory_usage("512MiB / 2GiB"),
+            Some((536_870_912, 2_147_483_648))
+        );
+    }
+
+    #[test]
+    fn reads_only_requested_environment_values() {
+        let contents = "SERVER_NAME='Pal Server'\nIS_PVP=false\nADMIN_PASSWORD=secret\n";
+        assert_eq!(env_string(contents, "SERVER_NAME").unwrap(), "Pal Server");
+        assert!(!env_bool(contents, "IS_PVP").unwrap());
+    }
+
+    #[test]
+    fn rejects_non_finite_world_rates() {
+        let settings = WorldSettingsInput {
+            server_name: "Pal Server".into(),
+            server_description: String::new(),
+            server_password: String::new(),
+            max_players: 8,
+            exp_rate: f64::NAN,
+            capture_rate: 1.0,
+            spawn_rate: 1.0,
+            work_speed_rate: 1.0,
+            egg_hatching_time: 1.0,
+            death_penalty: "Item".into(),
+            pvp: false,
+            friendly_fire: false,
+            fast_travel: true,
+            allow_client_mod: true,
+        };
+        assert!(validate_world_settings(&settings).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn server_snapshot_command_has_valid_shell_syntax() {
+        let status = std::process::Command::new("sh")
+            .args(["-n", "-c", &server_snapshot_script()])
+            .status()
+            .unwrap();
+        assert!(status.success());
     }
 }

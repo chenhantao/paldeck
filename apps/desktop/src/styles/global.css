@@ -734,6 +734,18 @@ select:focus-visible {
   transform: translateY(-1px);
 }
 
+.round-action:disabled,
+.row-actions button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.empty-state {
+  padding: 24px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
 .round-action--positive {
   color: var(--mint);
   border-color: rgba(93, 208, 167, 0.19);
@@ -1168,7 +1180,7 @@ select:focus-visible {
 .data-table__head,
 .data-table__row {
   display: grid;
-  grid-template-columns: 1.7fr 1fr 0.8fr 0.7fr 72px;
+  grid-template-columns: 1.7fr 1.2fr 0.7fr 72px;
   align-items: center;
   gap: 14px;
   padding: 0 18px;

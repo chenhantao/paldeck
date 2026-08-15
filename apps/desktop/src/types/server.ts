@@ -10,7 +10,8 @@ export type ComposeAction = "start" | "stop" | "restart" | "pull";
 export type Authentication =
   | {
       kind: "openssh";
-      sshHost: string;
+      host: string;
+      username: string;
     }
   | {
       kind: "password";
@@ -63,39 +64,37 @@ export interface InitializationOptions {
 }
 
 export interface ServerMetrics {
-  cpuPercent: number;
-  memoryUsedGb: number;
-  memoryTotalGb: number;
-  fps: number;
-  uptimeSeconds: number;
+  cpuPercent: number | null;
+  memoryUsedBytes: number | null;
+  memoryLimitBytes: number | null;
+  fps: number | null;
+  uptimeSeconds: number | null;
 }
 
 export interface ServerSnapshot {
   status: ServerStatus;
-  serverName: string;
-  version: string;
-  onlinePlayers: number;
-  maxPlayers: number;
-  worldDay: number;
-  lastBackupAt: string | null;
+  serverName: string | null;
+  version: string | null;
+  onlinePlayers: number | null;
+  maxPlayers: number | null;
+  worldDay: number | null;
+  restAvailable: boolean;
   metrics: ServerMetrics;
 }
 
 export interface Player {
   id: string;
+  playerId: string;
   name: string;
-  platform: "Steam" | "Xbox" | "PS5" | "Mac";
+  accountName: string;
   level: number;
-  joinedAt: string;
   pingMs: number;
 }
 
 export interface Backup {
-  id: string;
   filename: string;
-  createdAt: string;
-  sizeMb: number;
-  kind: "automatic" | "manual" | "pre-update";
+  modifiedUnix: number;
+  sizeBytes: number;
 }
 
 export interface LogEntry {

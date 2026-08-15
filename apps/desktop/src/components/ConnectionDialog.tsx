@@ -165,7 +165,7 @@ export function ConnectionDialog({
 function isConnectionComplete(profile: ServerProfile): boolean {
   if (!profile.name.trim() || !profile.remotePath.trim()) return false;
   if (profile.auth.kind === "openssh") {
-    return Boolean(profile.auth.sshHost.trim());
+    return Boolean(profile.auth.host.trim() && profile.auth.username.trim());
   }
   return Boolean(
     profile.auth.host.trim() &&

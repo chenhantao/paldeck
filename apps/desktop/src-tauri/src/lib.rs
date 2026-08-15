@@ -4,7 +4,8 @@ mod remote;
 
 use commands::{
     check_connection, compose_action, initialize_server, inspect_environment, inspect_server,
-    probe_connection, read_env, read_logs, server_action, write_env,
+    list_backups, online_players, player_action, probe_connection, read_env, read_logs,
+    read_world_settings, server_action, server_snapshot, write_env, write_world_settings,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -16,11 +17,17 @@ pub fn run() {
             inspect_environment,
             initialize_server,
             inspect_server,
+            server_snapshot,
+            online_players,
+            player_action,
+            list_backups,
             compose_action,
             server_action,
             read_logs,
             read_env,
-            write_env
+            write_env,
+            read_world_settings,
+            write_world_settings
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Paldeck");

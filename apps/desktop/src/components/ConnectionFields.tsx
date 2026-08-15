@@ -31,7 +31,7 @@ export function ConnectionFields({
           onClick={() =>
             onChange({
               ...profile,
-              auth: { kind: "openssh", sshHost: "" },
+              auth: { kind: "openssh", host: "", username: "" },
             })
           }
           disabled={disabled}
@@ -79,24 +79,49 @@ export function ConnectionFields({
         </label>
 
         {auth.kind === "openssh" ? (
-          <label className="field">
-            <span>SSH Host</span>
-            <input
-              value={auth.sshHost}
-              onChange={(event) =>
-                onChange({
-                  ...profile,
-                  auth: {
-                    ...auth,
-                    sshHost: event.target.value,
-                  },
-                })
-              }
-              placeholder="palworld-server"
-              spellCheck={false}
-              disabled={disabled}
-            />
-          </label>
+          <>
+            <label className="field">
+              <span>{t("SSH 用户名")}</span>
+              <input
+                value={auth.username}
+                onChange={(event) =>
+                  onChange({
+                    ...profile,
+                    auth: {
+                      ...auth,
+                      username: event.target.value,
+                    },
+                  })
+                }
+                placeholder="steam"
+                autoComplete="username"
+                disabled={disabled}
+              />
+            </label>
+            <label className="field">
+              <span>{t("服务器地址 / SSH Host")}</span>
+              <input
+                value={auth.host}
+                onChange={(event) =>
+                  onChange({
+                    ...profile,
+                    auth: {
+                      ...auth,
+                      host: event.target.value,
+                    },
+                  })
+                }
+                placeholder="192.0.2.10 或 palworld-server"
+                spellCheck={false}
+                disabled={disabled}
+              />
+              <small className="field__hint">
+                {t(
+                  "OpenSSH 将以 ssh 用户名@Host 连接，并继续复用系统 SSH 配置、密钥和端口设置。",
+                )}
+              </small>
+            </label>
+          </>
         ) : (
           <>
             <label className="field">

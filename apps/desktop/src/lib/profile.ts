@@ -7,7 +7,8 @@ export function createDefaultProfile(name = "我的帕鲁服务器"): ServerProf
     name,
     auth: {
       kind: "openssh",
-      sshHost: "",
+      host: "",
+      username: "",
     },
     remotePath: "~/.palworld",
   };
@@ -15,7 +16,8 @@ export function createDefaultProfile(name = "我的帕鲁服务器"): ServerProf
 
 export function profileAddress(profile: ServerProfile, emptyLabel = "尚未配置"): string {
   if (profile.auth.kind === "openssh") {
-    return profile.auth.sshHost || emptyLabel;
+    if (!profile.auth.host) return emptyLabel;
+    return `${profile.auth.username || "user"}@${profile.auth.host}`;
   }
   const port = profile.auth.port === 22 ? "" : `:${profile.auth.port}`;
   return `${profile.auth.username || "user"}@${profile.auth.host || "server"}${port}`;

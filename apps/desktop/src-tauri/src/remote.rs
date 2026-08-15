@@ -24,7 +24,10 @@ pub fn validate_profile(profile: &ServerProfile) -> Result<(), String> {
 
 fn validate_authentication(authentication: &Authentication) -> Result<(), String> {
     match authentication {
-        Authentication::OpenSsh { ssh_host } => validate_ssh_host(ssh_host),
+        Authentication::OpenSsh { host, username } => {
+            validate_ssh_host(host)?;
+            validate_ssh_username(username)
+        }
         Authentication::Password {
             host,
             port,
@@ -36,12 +39,7 @@ fn validate_authentication(authentication: &Authentication) -> Result<(), String
             if *port == 0 {
                 return Err("SSH 端口必须在 1 到 65535 之间".into());
             }
-            if username.trim().is_empty()
-                || username.len() > 255
-                || username.contains(['\0', '\n', '\r'])
-            {
-                return Err("SSH 用户名无效".into());
-            }
+            validate_ssh_username(username)?;
             if password.len() > 4_096 || password.contains('\0') {
                 return Err("SSH 密码无效".into());
             }
@@ -50,9 +48,23 @@ fn validate_authentication(authentication: &Authentication) -> Result<(), String
     }
 }
 
+fn validate_ssh_username(username: &str) -> Result<(), String> {
+    let trimmed = username.trim();
+    if trimmed.is_empty()
+        || trimmed != username
+        || trimmed.len() > 255
+        || !trimmed
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || "._-".contains(character))
+    {
+        return Err("SSH 用户名无效".into());
+    }
+    Ok(())
+}
+
 fn validate_ssh_host(host: &str) -> Result<(), String> {
     let trimmed = host.trim();
-    if trimmed.is_empty() || trimmed.len() > 255 {
+    if trimmed.is_empty() || trimmed != host || trimmed.len() > 255 {
         return Err("SSH Host 长度无效".into());
     }
 
@@ -66,9 +78,9 @@ fn validate_ssh_host(host: &str) -> Result<(), String> {
 
     if !trimmed
         .chars()
-        .all(|character| character.is_ascii_alphanumeric() || ".-_@".contains(character))
+        .all(|character| character.is_ascii_alphanumeric() || ".-_".contains(character))
     {
-        return Err("SSH Host 只能包含字母、数字、点、横线、下划线和 @".into());
+        return Err("SSH Host 只能包含字母、数字、点、横线和下划线".into());
     }
 
     Ok(())
@@ -235,9 +247,10 @@ async fn run_openssh(
     remote_command: &str,
     operation_timeout: Duration,
 ) -> Result<CommandResult, String> {
-    let Authentication::OpenSsh { ssh_host } = &profile.auth else {
+    let Authentication::OpenSsh { host, username } = &profile.auth else {
         return Err("登录方式不是 OpenSSH".into());
     };
+    let target = openssh_target(username, host);
 
     let child = Command::new("ssh")
         .args([
@@ -245,7 +258,7 @@ async fn run_openssh(
             "BatchMode=yes",
             "-o",
             "ConnectTimeout=8",
-            ssh_host,
+            &target,
             remote_command,
         ])
         .stdin(Stdio::null())
@@ -259,6 +272,10 @@ async fn run_openssh(
         .map_err(|error| format!("无法启动系统 SSH：{error}"))?;
 
     Ok(CommandResult::from_output(output))
+}
+
+fn openssh_target(username: &str, host: &str) -> String {
+    format!("{username}@{host}")
 }
 
 fn probe_password(authentication: &Authentication) -> Result<ConnectionProbe, String> {
@@ -450,15 +467,16 @@ pub fn in_compose_directory(profile: &ServerProfile, command: &str) -> Result<St
 #[cfg(test)]
 mod tests {
     use super::{
-        compose_template_hash, in_compose_directory, remote_directory_assignment, shell_quote,
-        validate_profile,
+        compose_template_hash, in_compose_directory, openssh_target, remote_directory_assignment,
+        shell_quote, validate_profile,
     };
     use crate::models::{Authentication, ServerProfile};
 
-    fn openssh_profile(host: &str, path: &str) -> ServerProfile {
+    fn openssh_profile(username: &str, host: &str, path: &str) -> ServerProfile {
         ServerProfile {
             auth: Authentication::OpenSsh {
-                ssh_host: host.into(),
+                host: host.into(),
+                username: username.into(),
             },
             remote_path: path.into(),
         }
@@ -479,17 +497,40 @@ mod tests {
 
     #[test]
     fn validates_safe_profile() {
-        assert!(validate_profile(&openssh_profile("admin@palworld-server", "~/.palworld")).is_ok());
+        assert!(
+            validate_profile(&openssh_profile("admin", "palworld-server", "~/.palworld")).is_ok()
+        );
+    }
+
+    #[test]
+    fn builds_explicit_openssh_username_and_host_target() {
+        assert_eq!(openssh_target("steam", "192.0.2.10"), "steam@192.0.2.10");
+    }
+
+    #[test]
+    fn requires_separate_openssh_username_and_host() {
+        assert!(validate_profile(&openssh_profile("", "palworld-server", "~/.palworld")).is_err());
+        assert!(validate_profile(&openssh_profile(
+            "admin",
+            "admin@palworld-server",
+            "~/.palworld"
+        ))
+        .is_err());
     }
 
     #[test]
     fn rejects_host_option_injection() {
-        assert!(validate_profile(&openssh_profile("-oProxyCommand=bad", "/opt/palworld")).is_err());
+        assert!(validate_profile(&openssh_profile(
+            "admin",
+            "-oProxyCommand=bad",
+            "/opt/palworld"
+        ))
+        .is_err());
     }
 
     #[test]
     fn rejects_root_as_remote_path() {
-        assert!(validate_profile(&openssh_profile("palworld-server", "/")).is_err());
+        assert!(validate_profile(&openssh_profile("admin", "palworld-server", "/")).is_err());
     }
 
     #[test]
@@ -503,7 +544,7 @@ mod tests {
             "~/.palworld\\data",
         ] {
             assert!(
-                validate_profile(&openssh_profile("palworld-server", path)).is_err(),
+                validate_profile(&openssh_profile("admin", "palworld-server", path)).is_err(),
                 "accepted unsafe path: {path}"
             );
         }
@@ -535,7 +576,7 @@ mod tests {
     #[test]
     fn managed_commands_require_marker_and_reject_symlinks() {
         let command = in_compose_directory(
-            &openssh_profile("palworld-server", "~/.palworld"),
+            &openssh_profile("admin", "palworld-server", "~/.palworld"),
             "printf ok",
         )
         .unwrap();
@@ -556,7 +597,7 @@ mod tests {
     #[test]
     fn managed_command_has_valid_shell_syntax() {
         let command = in_compose_directory(
-            &openssh_profile("palworld-server", "~/.palworld"),
+            &openssh_profile("admin", "palworld-server", "~/.palworld"),
             "printf ok",
         )
         .unwrap();

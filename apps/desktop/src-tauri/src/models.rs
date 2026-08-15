@@ -8,10 +8,14 @@ pub struct ServerProfile {
 }
 
 #[derive(Clone, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum Authentication {
     #[serde(rename = "openssh")]
-    OpenSsh { ssh_host: String },
+    OpenSsh { host: String, username: String },
     Password {
         host: String,
         port: u16,
@@ -19,6 +23,47 @@ pub enum Authentication {
         password: String,
         trusted_host_key: Option<String>,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Authentication, ServerProfile};
+
+    #[test]
+    fn deserializes_camel_case_authentication_fields() {
+        let openssh: ServerProfile = serde_json::from_value(serde_json::json!({
+            "auth": {
+                "kind": "openssh",
+                "host": "palworld-server",
+                "username": "steam"
+            },
+            "remotePath": "~/.palworld"
+        }))
+        .expect("OpenSSH profile should deserialize");
+        assert!(matches!(
+            openssh.auth,
+            Authentication::OpenSsh { host, username }
+                if host == "palworld-server" && username == "steam"
+        ));
+
+        let password: ServerProfile = serde_json::from_value(serde_json::json!({
+            "auth": {
+                "kind": "password",
+                "host": "192.0.2.10",
+                "port": 22,
+                "username": "steam",
+                "password": "secret",
+                "trustedHostKey": "ssh-ed25519 AAAA"
+            },
+            "remotePath": "~/.palworld"
+        }))
+        .expect("password profile should deserialize");
+        assert!(matches!(
+            password.auth,
+            Authentication::Password { trusted_host_key, .. }
+                if trusted_host_key.as_deref() == Some("ssh-ed25519 AAAA")
+        ));
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -79,4 +124,78 @@ pub struct InitializationOptions {
     pub data_directory: String,
     pub players: u8,
     pub start_after_install: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerSnapshot {
+    pub status: String,
+    pub server_name: Option<String>,
+    pub version: Option<String>,
+    pub online_players: Option<u64>,
+    pub max_players: Option<u64>,
+    pub world_day: Option<u64>,
+    pub cpu_percent: Option<f64>,
+    pub memory_used_bytes: Option<u64>,
+    pub memory_limit_bytes: Option<u64>,
+    pub fps: Option<f64>,
+    pub uptime_seconds: Option<u64>,
+    pub rest_available: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OnlinePlayer {
+    pub id: String,
+    pub player_id: String,
+    pub name: String,
+    pub account_name: String,
+    pub ping_ms: f64,
+    pub level: u64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupEntry {
+    pub filename: String,
+    pub modified_unix: u64,
+    pub size_bytes: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldSettingsInput {
+    pub server_name: String,
+    pub server_description: String,
+    pub server_password: String,
+    pub max_players: u8,
+    pub exp_rate: f64,
+    pub capture_rate: f64,
+    pub spawn_rate: f64,
+    pub work_speed_rate: f64,
+    pub egg_hatching_time: f64,
+    pub death_penalty: String,
+    pub pvp: bool,
+    pub friendly_fire: bool,
+    pub fast_travel: bool,
+    pub allow_client_mod: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldSettingsOutput {
+    pub server_name: String,
+    pub server_description: String,
+    pub server_password: String,
+    pub max_players: u8,
+    pub exp_rate: f64,
+    pub capture_rate: f64,
+    pub spawn_rate: f64,
+    pub work_speed_rate: f64,
+    pub egg_hatching_time: f64,
+    pub death_penalty: String,
+    pub pvp: bool,
+    pub friendly_fire: bool,
+    pub fast_travel: bool,
+    pub allow_client_mod: bool,
 }

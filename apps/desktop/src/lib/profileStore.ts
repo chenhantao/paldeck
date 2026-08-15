@@ -3,32 +3,62 @@ import { createUuid } from "./id";
 
 const PROFILE_KEY = "paldeck.server-profile.v1";
 
+interface StoredAuthentication {
+  kind?: string;
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  trustedHostKey?: string;
+  sshHost?: string;
+}
+
+interface StoredProfile {
+  id?: string;
+  name?: string;
+  remotePath?: string;
+  sshHost?: string;
+  auth?: StoredAuthentication;
+}
+
 export function loadProfile(defaultName = "我的帕鲁服务器"): ServerProfile | null {
   try {
     const serialized = window.localStorage.getItem(PROFILE_KEY);
     if (!serialized) return null;
-    const stored = JSON.parse(serialized) as Partial<ServerProfile> & {
-      sshHost?: string;
+    const stored = JSON.parse(serialized) as StoredProfile;
+    return {
+      id: stored.id ?? createUuid(),
+      name: stored.name ?? defaultName,
+      auth: normalizeAuthentication(stored),
+      remotePath: stored.remotePath ?? "~/.palworld",
     };
-    const profile: ServerProfile =
-      stored.auth && stored.id && stored.name && stored.remotePath
-        ? (stored as ServerProfile)
-        : {
-            id: stored.id ?? createUuid(),
-            name: stored.name ?? defaultName,
-            auth: {
-              kind: "openssh",
-              sshHost: stored.sshHost ?? "",
-            },
-            remotePath: stored.remotePath ?? "~/.palworld",
-          };
-    if (profile.auth.kind === "password") {
-      profile.auth.password = "";
-    }
-    return profile;
   } catch {
     return null;
   }
+}
+
+function normalizeAuthentication(stored: StoredProfile): ServerProfile["auth"] {
+  const auth = stored.auth;
+  if (auth?.kind === "password") {
+    return {
+      kind: "password",
+      host: auth.host ?? "",
+      port: auth.port ?? 22,
+      username: auth.username ?? "",
+      password: "",
+      trustedHostKey: auth.trustedHostKey,
+    };
+  }
+
+  const legacyTarget = auth?.sshHost ?? stored.sshHost ?? "";
+  const separator = legacyTarget.lastIndexOf("@");
+  const legacyUsername = separator > 0 ? legacyTarget.slice(0, separator) : "";
+  const legacyHost = separator > 0 ? legacyTarget.slice(separator + 1) : legacyTarget;
+  return {
+    kind: "openssh",
+    host: auth?.host ?? legacyHost,
+    username: auth?.username ?? legacyUsername,
+  };
 }
 
 export function saveProfile(profile: ServerProfile): void {

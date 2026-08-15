@@ -1,25 +1,73 @@
 import {
   Ban,
-  Clock3,
   MessageSquareText,
-  MoreHorizontal,
   Search,
-  Shield,
   Signal,
   UserMinus,
   Users,
 } from "lucide-react";
-import { useState } from "react";
-import { formatTime } from "../lib/format";
-import { mockPlayers } from "../lib/mockData";
+import { useCallback, useEffect, useState } from "react";
+import { fetchOnlinePlayers, runPlayerAction } from "../lib/backend";
+import type { Player, ServerProfile } from "../types/server";
 import { useI18n } from "../i18n/I18nContext";
 
-export function PlayersPage() {
+export function PlayersPage({
+  profile,
+  onNotice,
+}: {
+  profile: ServerProfile;
+  onNotice: (message: string) => void;
+}) {
   const [query, setQuery] = useState("");
-  const { t, locale } = useI18n();
-  const filteredPlayers = mockPlayers.filter((player) =>
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const { t, errorMessage } = useI18n();
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      setPlayers(await fetchOnlinePlayers(profile));
+    } catch (error) {
+      onNotice(errorMessage(error));
+    } finally {
+      setLoading(false);
+    }
+  }, [profile, onNotice, errorMessage]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const filteredPlayers = players.filter((player) =>
     player.name.toLowerCase().includes(query.toLowerCase()),
   );
+
+  const act = async (action: "kick" | "ban", player: Player) => {
+    if (!window.confirm(t(action === "kick" ? "确认踢出玩家 {name}？" : "确认封禁玩家 {name}？", { name: player.name }))) return;
+    setBusyId(player.id);
+    try {
+      const result = await runPlayerAction(profile, action, player.id, "Managed by Paldeck");
+      if (!result.success) throw new Error(result.stderr || t("玩家操作失败"));
+      onNotice(t(action === "kick" ? "玩家已被踢出" : "玩家已被封禁"));
+      await load();
+    } catch (error) {
+      onNotice(errorMessage(error));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const announce = async () => {
+    const message = window.prompt(t("输入广播消息"));
+    if (!message?.trim()) return;
+    try {
+      const result = await runPlayerAction(profile, "announce", null, message.trim());
+      if (!result.success) throw new Error(result.stderr || t("广播发送失败"));
+      onNotice(t("广播已发送"));
+    } catch (error) {
+      onNotice(errorMessage(error));
+    }
+  };
 
   return (
     <div className="page">
@@ -29,7 +77,7 @@ export function PlayersPage() {
           <h1>{t("玩家")}</h1>
           <p>{t("查看在线状态，并通过 Palworld REST API 管理当前玩家。")}</p>
         </div>
-        <button className="button button--primary">
+        <button className="button button--primary" onClick={() => void announce()}>
           <MessageSquareText size={17} />
           {t("广播消息")}
         </button>
@@ -39,17 +87,7 @@ export function PlayersPage() {
         <div>
           <Users size={18} />
           <span>{t("当前在线")}</span>
-          <strong>3</strong>
-        </div>
-        <div>
-          <Clock3 size={18} />
-          <span>{t("今日峰值")}</span>
-          <strong>6</strong>
-        </div>
-        <div>
-          <Shield size={18} />
-          <span>{t("已封禁")}</span>
-          <strong>0</strong>
+          <strong>{players.length}</strong>
         </div>
       </div>
 
@@ -63,17 +101,12 @@ export function PlayersPage() {
               placeholder={t("搜索玩家名称")}
             />
           </label>
-          <button className="button button--ghost">
-            <MoreHorizontal size={17} />
-            {t("更多操作")}
-          </button>
         </div>
 
         <div className="data-table">
           <div className="data-table__head">
             <span>{t("玩家")}</span>
-            <span>{t("平台与等级")}</span>
-            <span>{t("加入时间")}</span>
+            <span>{t("账号与等级")}</span>
             <span>{t("延迟")}</span>
             <span />
           </div>
@@ -90,23 +123,23 @@ export function PlayersPage() {
                 </div>
               </div>
               <span>
-                {player.platform} · Lv.{player.level}
+                {player.accountName || player.id} · Lv.{player.level}
               </span>
-              <span>{formatTime(player.joinedAt, locale)}</span>
               <span className="table-ping">
                 <Signal size={14} />
-                {player.pingMs} ms
+                {player.pingMs.toFixed(0)} ms
               </span>
               <div className="row-actions">
-                <button title={t("踢出玩家")}>
+                <button title={t("踢出玩家")} disabled={busyId !== null} onClick={() => void act("kick", player)}>
                   <UserMinus size={16} />
                 </button>
-                <button title={t("封禁玩家")} className="danger">
+                <button title={t("封禁玩家")} className="danger" disabled={busyId !== null} onClick={() => void act("ban", player)}>
                   <Ban size={16} />
                 </button>
               </div>
             </div>
           ))}
+          {!loading && filteredPlayers.length === 0 && <div className="empty-state">{t("当前没有在线玩家")}</div>}
         </div>
       </section>
     </div>

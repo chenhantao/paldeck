@@ -5,20 +5,54 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { formatTime } from "../lib/format";
-import { mockLogs } from "../lib/mockData";
+import { fetchRemoteLogs } from "../lib/backend";
+import { parseRemoteLogs } from "../lib/remoteData";
+import type { LogEntry, ServerProfile } from "../types/server";
 import { useI18n } from "../i18n/I18nContext";
 
-export function LogsPage() {
+export function LogsPage({ profile, onNotice }: { profile: ServerProfile; onNotice: (message: string) => void }) {
   const [paused, setPaused] = useState(false);
   const [query, setQuery] = useState("");
-  const { t, locale } = useI18n();
-  const logs = mockLogs.filter((entry) =>
+  const [entries, setEntries] = useState<LogEntry[]>([]);
+  const lastError = useRef<string | null>(null);
+  const { t, locale, errorMessage } = useI18n();
+  const load = useCallback(async () => {
+    try {
+      const result = await fetchRemoteLogs(profile, 500);
+      if (!result.success) throw new Error(result.stderr || t("读取日志失败"));
+      setEntries(parseRemoteLogs(result.stdout));
+      lastError.current = null;
+    } catch (error) {
+      const message = errorMessage(error);
+      if (lastError.current !== message) onNotice(message);
+      lastError.current = message;
+    }
+  }, [profile, onNotice, errorMessage, t]);
+
+  useEffect(() => {
+    if (paused) return;
+    void load();
+    const timer = window.setInterval(() => void load(), 5_000);
+    return () => window.clearInterval(timer);
+  }, [paused, load]);
+
+  const logs = entries.filter((entry) =>
     `${entry.source} ${entry.message}`
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
+
+  const exportLogs = () => {
+    const blob = new Blob([entries.map((entry) => `${entry.timestamp} ${entry.message}`).join("\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `paldeck-logs-${new Date().toISOString().replace(/[:.]/g, "-")}.txt`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="page page--logs">
@@ -36,7 +70,7 @@ export function LogsPage() {
             <CirclePause size={17} />
             {t(paused ? "继续跟随" : "暂停")}
           </button>
-          <button className="button button--ghost">
+          <button className="button button--ghost" onClick={exportLogs} disabled={entries.length === 0}>
             <Download size={17} />
             {t("导出")}
           </button>
@@ -63,7 +97,7 @@ export function LogsPage() {
                 placeholder={t("过滤日志")}
               />
             </label>
-            <button title={t("清空本地显示")}>
+            <button title={t("清空本地显示")} onClick={() => setEntries([])}>
               <Trash2 size={15} />
             </button>
           </div>

@@ -7,9 +7,10 @@ Palworld dedicated servers. The server runs with Docker Compose, while the
 desktop client performs allowlisted management operations over SSH.
 
 > [!IMPORTANT]
-> Paldeck is still in early development. The first-time setup flow and basic
-> Compose operations use the real backend; dashboard metrics, players,
-> backups, and parts of the world settings still use demonstration data.
+> Paldeck is still in early development. Its desktop pages now use the real
+> remote Compose, Docker, Palworld REST API, log, backup, and `.env` data.
+> Backup download/restore and historical player statistics are not yet
+> available and are not presented as working controls.
 
 ## Features
 
@@ -18,11 +19,14 @@ desktop client performs allowlisted management operations over SSH.
 - Manage servers from a cross-platform Tauri 2, React, and Rust desktop client
 - Use the desktop interface in English or Simplified Chinese, or follow the system language
 - Inspect Linux, amd64, Docker, and Compose during first-time setup
-- Reuse an OpenSSH configuration or connect with a server username and password
+- Connect as an explicit `username@host` with the system OpenSSH configuration and keys, or use username-and-password login
 - Reopen deployments carrying a Paldeck management marker, or safely create a new one
 - Validate remote paths and Compose operations against strict allowlists
 - Store deployment files in `~/.palworld` for the remote account by default
 - Bind the Palworld REST API to the server loopback interface by default
+- Read real container CPU/memory, Palworld FPS, uptime, world-day, and player data
+- Poll real Compose logs, create and list backups, and edit validated world settings
+- Broadcast messages and kick or ban online players through the container REST client
 
 ## Repository layout
 
@@ -89,7 +93,9 @@ connections.
 
 On first launch, the desktop client opens the setup wizard:
 
-1. Choose an OpenSSH configuration/key or username-and-password login.
+1. For OpenSSH/key authentication, enter the username and host; Paldeck invokes
+   the system SSH client with `username@host`. Alternatively, use direct
+   username-and-password login.
 2. For password login, verify the server's SHA256 host-key fingerprint on the
    first connection.
 3. Inspect the remote system, architecture, Docker permissions, and Compose
@@ -141,8 +147,23 @@ Each development build must remain running for a startup smoke test before it
 is uploaded. The macOS job also rejects non-system dynamic libraries and
 rechecks the signature after extracting the final ZIP.
 
-Formal releases will be published separately from version tags on `master`;
-development-branch artifacts will not be promoted as releases.
+## Publishing a release
+
+Formal releases are rebuilt from version tags on `master`; development-branch
+artifacts are never promoted as release assets. A tag matching `v*` starts the
+release workflow only when all of these checks pass:
+
+- the tag uses Semantic Versioning and points to a commit reachable from
+  `master`
+- the root, desktop, Rust, and Tauri versions match the tag
+- `CHANGELOG.md` contains a section for that version
+- all three native builds and bounded startup smoke tests succeed
+- the macOS bundle passes its signature and dynamic-library checks
+
+The workflow creates a **draft** GitHub Release with five native assets and a
+`SHA256SUMS.txt` file. Review the draft and downloaded packages before
+publishing it manually. The macOS package remains ad-hoc-signed and not
+notarized; the Windows and Linux packages remain unsigned.
 
 ## Security boundaries
 

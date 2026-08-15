@@ -1,15 +1,37 @@
 import { Eye, EyeOff, RotateCcw, Save, SlidersHorizontal } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Toggle } from "../components/ui/Toggle";
-import { defaultWorldSettings } from "../lib/mockData";
-import type { WorldSettings } from "../types/server";
+import { fetchWorldSettings, saveWorldSettings } from "../lib/backend";
+import type { ServerProfile, WorldSettings } from "../types/server";
 import { useI18n } from "../i18n/I18nContext";
 import { LanguageSelector } from "../components/LanguageSelector";
 
-export function SettingsPage({ onSaved }: { onSaved: () => void }) {
-  const [settings, setSettings] = useState(defaultWorldSettings);
+export function SettingsPage({ profile, onNotice }: { profile: ServerProfile; onNotice: (message: string) => void }) {
+  const [settings, setSettings] = useState(projectDefaults);
+  const [busy, setBusy] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const { t } = useI18n();
+  const { t, errorMessage } = useI18n();
+  useEffect(() => {
+    setBusy(true);
+    void fetchWorldSettings(profile)
+      .then(setSettings)
+      .catch((error) => onNotice(errorMessage(error)))
+      .finally(() => setBusy(false));
+  }, [profile, onNotice, errorMessage]);
+
+  const save = async () => {
+    setBusy(true);
+    onNotice(t("正在保存并验证配置…"));
+    try {
+      const result = await saveWorldSettings(profile, settings);
+      if (!result.success) throw new Error(result.stderr || t("保存配置失败"));
+      onNotice(t("世界配置已保存，重启服务器后生效"));
+    } catch (error) {
+      onNotice(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  };
   const update = <K extends keyof WorldSettings>(
     key: K,
     value: WorldSettings[K],
@@ -26,12 +48,13 @@ export function SettingsPage({ onSaved }: { onSaved: () => void }) {
         <div className="page-header__actions">
           <button
             className="button button--ghost"
-            onClick={() => setSettings(defaultWorldSettings)}
+            onClick={() => setSettings(projectDefaults)}
+            disabled={busy}
           >
             <RotateCcw size={17} />
             {t("恢复默认")}
           </button>
-          <button className="button button--primary" onClick={onSaved}>
+          <button className="button button--primary" onClick={() => void save()} disabled={busy}>
             <Save size={17} />
             {t("保存更改")}
           </button>
@@ -44,9 +67,9 @@ export function SettingsPage({ onSaved }: { onSaved: () => void }) {
             <SlidersHorizontal size={17} />
             {t("基础设置")}
           </button>
-          <button className="settings-nav__item">{t("世界倍率")}</button>
-          <button className="settings-nav__item">{t("基地与公会")}</button>
-          <button className="settings-nav__item">{t("战斗规则")}</button>
+          <button className="settings-nav__item" disabled>{t("世界倍率")}</button>
+          <button className="settings-nav__item" disabled>{t("基地与公会")}</button>
+          <button className="settings-nav__item" disabled>{t("战斗规则")}</button>
           <LanguageSelector />
         </aside>
 
@@ -176,6 +199,23 @@ export function SettingsPage({ onSaved }: { onSaved: () => void }) {
     </div>
   );
 }
+
+const projectDefaults: WorldSettings = {
+  serverName: "My Palworld Server",
+  serverDescription: "Private Palworld dedicated server",
+  serverPassword: "",
+  maxPlayers: 8,
+  expRate: 1,
+  captureRate: 1,
+  spawnRate: 1,
+  workSpeedRate: 1,
+  eggHatchingTime: 1,
+  deathPenalty: "Item",
+  pvp: false,
+  friendlyFire: false,
+  fastTravel: true,
+  allowClientMod: true,
+};
 
 function RangeField({
   label,

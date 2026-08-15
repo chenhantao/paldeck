@@ -16,32 +16,55 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MetricCard } from "../components/ui/MetricCard";
 import { StatusPill } from "../components/ui/StatusPill";
-import { formatDateTime, formatTime, formatUptime } from "../lib/format";
-import { mockLogs, mockPlayers } from "../lib/mockData";
-import type { ServerSnapshot } from "../types/server";
+import { formatBytes, formatDateTime, formatTime, formatUptime } from "../lib/format";
+import { fetchBackups, fetchOnlinePlayers, fetchRemoteLogs } from "../lib/backend";
+import { parseRemoteLogs } from "../lib/remoteData";
+import type { Backup, LogEntry, Player, ServerProfile, ServerSnapshot } from "../types/server";
 import type { ComposeAction } from "../types/server";
 import { useI18n } from "../i18n/I18nContext";
 
 interface DashboardPageProps {
+  profile: ServerProfile;
   snapshot: ServerSnapshot;
   onOpenLogs: () => void;
+  onOpenPlayers: () => void;
   onNotice: (message: string) => void;
   onComposeAction: (action: ComposeAction) => Promise<void>;
   onSaveWorld: () => Promise<void>;
 }
 
 export function DashboardPage({
+  profile,
   snapshot,
   onOpenLogs,
+  onOpenPlayers,
   onNotice,
   onComposeAction,
   onSaveWorld,
 }: DashboardPageProps) {
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [backups, setBackups] = useState<Backup[]>([]);
   const { t, locale, errorMessage } = useI18n();
+
+  useEffect(() => {
+    void fetchBackups(profile).then(setBackups).catch(() => setBackups([]));
+    if (snapshot.status !== "online") {
+      setPlayers([]);
+      setLogs([]);
+      return;
+    }
+    void Promise.allSettled([
+      fetchOnlinePlayers(profile).then(setPlayers),
+      fetchRemoteLogs(profile, 80).then((result) => {
+        if (result.success) setLogs(parseRemoteLogs(result.stdout));
+      }),
+    ]);
+  }, [profile, snapshot.status]);
 
   const performAction = async (
     action: string,
@@ -63,7 +86,10 @@ export function DashboardPage({
         <div>
           <span className="eyebrow">SERVER OVERVIEW</span>
           <h1>{t("早上好，管理员")}</h1>
-          <p>{t("你的世界运行稳定，现在有 {count} 位玩家在线。", { count: snapshot.onlinePlayers })}</p>
+          <p>{t("当前服务器状态：{status}，在线玩家：{count}。", {
+            status: t(statusLabel[snapshot.status]),
+            count: snapshot.onlinePlayers ?? "—",
+          })}</p>
         </div>
         <div className="page-header__actions">
           <button className="button button--ghost" onClick={onOpenLogs}>
@@ -73,6 +99,7 @@ export function DashboardPage({
           <button
             className="button button--primary"
             onClick={() => performAction("save", onSaveWorld)}
+            disabled={busyAction !== null || snapshot.status !== "online"}
           >
             <Save
               size={17}
@@ -100,29 +127,29 @@ export function DashboardPage({
         <div className="hero-card__content">
           <div className="hero-card__status">
             <StatusPill status={snapshot.status} />
-            <span>{t("世界第 {day} 天", { day: snapshot.worldDay })}</span>
+            <span>{t("世界第 {day} 天", { day: snapshot.worldDay ?? "—" })}</span>
           </div>
-          <h2>{snapshot.serverName}</h2>
+          <h2>{snapshot.serverName ?? profile.name}</h2>
           <p>
             Palworld Dedicated Server
             <span>•</span>
-            {snapshot.version}
+            {snapshot.version ?? "—"}
           </p>
           <div className="hero-card__meta">
             <div>
               <Users size={17} />
               <span>
-                <strong>{snapshot.onlinePlayers}</strong> / {snapshot.maxPlayers}{" "}
+                <strong>{snapshot.onlinePlayers ?? "—"}</strong> / {snapshot.maxPlayers ?? "—"}{" "}
                 {t("玩家")}
               </span>
             </div>
             <div>
               <Clock3 size={17} />
-              <span>{formatUptime(snapshot.metrics.uptimeSeconds, locale)}</span>
+              <span>{snapshot.metrics.uptimeSeconds === null ? "—" : formatUptime(snapshot.metrics.uptimeSeconds, locale)}</span>
             </div>
             <div>
               <Archive size={17} />
-              <span>{formatDateTime(snapshot.lastBackupAt, locale)}</span>
+              <span>{formatDateTime(backups[0] ? new Date(backups[0].modifiedUnix * 1000).toISOString() : null, locale)}</span>
             </div>
           </div>
         </div>
@@ -134,8 +161,9 @@ export function DashboardPage({
             onClick={() =>
               performAction("start", () => onComposeAction("start"))
             }
+            disabled={busyAction !== null}
           >
-            <Play size={18} fill="currentColor" />
+            {busyAction === "start" ? <RefreshCw size={18} className="spin" /> : <Play size={18} fill="currentColor" />}
           </button>
           <button
             className="round-action"
@@ -143,6 +171,7 @@ export function DashboardPage({
             onClick={() =>
               performAction("restart", () => onComposeAction("restart"))
             }
+            disabled={busyAction !== null}
           >
             <RefreshCw
               size={18}
@@ -155,11 +184,9 @@ export function DashboardPage({
             onClick={() =>
               performAction("stop", () => onComposeAction("stop"))
             }
+            disabled={busyAction !== null}
           >
             <Square size={16} fill="currentColor" />
-          </button>
-          <button className="round-action" title={t("更多")}>
-            <MoreHorizontal size={19} />
           </button>
         </div>
       </section>
@@ -168,34 +195,26 @@ export function DashboardPage({
         <MetricCard
           icon={Cpu}
           label="CPU"
-          value={`${snapshot.metrics.cpuPercent}%`}
-          detail={t("4 核 · 负载正常")}
+          value={snapshot.metrics.cpuPercent === null ? "—" : `${snapshot.metrics.cpuPercent.toFixed(1)}%`}
+          detail={t("容器实时数据")}
           tone="mint"
           footer={
-            <div className="spark-bars">
-              {[28, 42, 34, 51, 48, 64, 43, 56, 36, 49, 61, 52].map(
-                (height, index) => (
-                  <i key={index} style={{ height: `${height}%` }} />
-                ),
-              )}
-            </div>
+            <div />
           }
         />
         <MetricCard
           icon={MemoryStick}
           label={t("内存")}
-          value={`${snapshot.metrics.memoryUsedGb} GB`}
-          detail={t("共 {value} GB", { value: snapshot.metrics.memoryTotalGb })}
+          value={formatBytes(snapshot.metrics.memoryUsedBytes, locale)}
+          detail={t("上限 {value}", { value: formatBytes(snapshot.metrics.memoryLimitBytes, locale) })}
           tone="sky"
           footer={
             <div className="progress-track">
               <span
                 style={{
-                  width: `${
-                    (snapshot.metrics.memoryUsedGb /
-                      snapshot.metrics.memoryTotalGb) *
-                    100
-                  }%`,
+                  width: snapshot.metrics.memoryUsedBytes !== null && snapshot.metrics.memoryLimitBytes
+                    ? `${(snapshot.metrics.memoryUsedBytes / snapshot.metrics.memoryLimitBytes) * 100}%`
+                    : "0%",
                 }}
               />
             </div>
@@ -204,21 +223,21 @@ export function DashboardPage({
         <MetricCard
           icon={Activity}
           label={t("服务端 FPS")}
-          value={snapshot.metrics.fps.toFixed(1)}
-          detail={t("目标 60 FPS")}
+          value={snapshot.metrics.fps === null ? "—" : snapshot.metrics.fps.toFixed(1)}
+          detail={t("来自 Palworld REST API")}
           tone="violet"
           footer={
             <div className="metric-trend metric-trend--good">
               <Zap size={13} fill="currentColor" />
-              {t("稳定")}
+              {snapshot.restAvailable ? t("实时") : t("不可用")}
             </div>
           }
         />
         <MetricCard
           icon={Database}
           label={t("最近备份")}
-          value="284 MB"
-          detail={formatDateTime(snapshot.lastBackupAt, locale)}
+          value={formatBytes(backups[0]?.sizeBytes ?? null, locale)}
+          detail={formatDateTime(backups[0] ? new Date(backups[0].modifiedUnix * 1000).toISOString() : null, locale)}
           tone="amber"
           footer={
             <div className="metric-trend">
@@ -236,12 +255,12 @@ export function DashboardPage({
               <span className="eyebrow">LIVE PLAYERS</span>
               <h3>{t("在线玩家")}</h3>
             </div>
-            <button className="text-button">
+            <button className="text-button" onClick={onOpenPlayers}>
               {t("查看全部")} <ArrowUpRight size={14} />
             </button>
           </header>
           <div className="player-list player-list--compact">
-            {mockPlayers.map((player) => (
+            {players.slice(0, 5).map((player) => (
               <div className="player-row" key={player.id}>
                 <div
                   className={`avatar avatar--${player.name.length % 3}`}
@@ -253,15 +272,16 @@ export function DashboardPage({
                 <div className="player-row__identity">
                   <strong>{player.name}</strong>
                   <span>
-                    Lv.{player.level} · {player.platform}
+                    Lv.{player.level} · {player.accountName || player.id}
                   </span>
                 </div>
                 <div className="ping">
                   <i />
-                  {player.pingMs} ms
+                  {player.pingMs.toFixed(0)} ms
                 </div>
               </div>
             ))}
+            {players.length === 0 && <div className="empty-state">{t("当前没有在线玩家")}</div>}
           </div>
         </section>
 
@@ -276,7 +296,7 @@ export function DashboardPage({
             </button>
           </header>
           <div className="activity-list">
-            {mockLogs.slice(0, 4).map((entry) => (
+            {logs.slice(-4).reverse().map((entry) => (
               <div className="activity-row" key={entry.id}>
                 <span
                   className={`activity-row__dot activity-row__dot--${entry.level}`}
@@ -289,18 +309,25 @@ export function DashboardPage({
                 </div>
               </div>
             ))}
+            {logs.length === 0 && <div className="empty-state">{t("暂无日志")}</div>}
           </div>
         </section>
       </div>
 
-      <div className="preview-banner">
-        <ServerCog size={17} />
-        <span>
-          {t(
-            "当前显示演示数据。保存 SSH 连接后，Rust 后端会读取远程 Compose 和 REST API 的真实状态。",
-          )}
-        </span>
-      </div>
+      {!snapshot.restAvailable && snapshot.status === "online" && (
+        <div className="preview-banner">
+          <ServerCog size={17} />
+          <span>{t("容器正在运行，但 Palworld REST API 尚未就绪；玩家、FPS 和世界天数暂不可用。")}</span>
+        </div>
+      )}
     </div>
   );
 }
+
+const statusLabel = {
+  online: "运行中",
+  offline: "已停止",
+  starting: "启动中",
+  stopping: "停止中",
+  unknown: "未知",
+} as const;

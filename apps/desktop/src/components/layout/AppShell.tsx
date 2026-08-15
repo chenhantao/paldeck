@@ -4,7 +4,6 @@ import {
   ChevronDown,
   CircleGauge,
   FileTerminal,
-  PanelLeftClose,
   Radio,
   Settings2,
   Users,
@@ -28,6 +27,7 @@ interface AppShellProps {
   onPageChange: (page: PageId) => void;
   profile: ServerProfile;
   status: ServerStatus;
+  playerCount: number | null;
   onOpenConnection: () => void;
   children: ReactNode;
 }
@@ -49,6 +49,7 @@ export function AppShell({
   onPageChange,
   profile,
   status,
+  playerCount,
   onOpenConnection,
   children,
 }: AppShellProps) {
@@ -88,7 +89,7 @@ export function AppShell({
             >
               <Icon size={18} strokeWidth={1.8} />
               <span>{t(label)}</span>
-              {id === "players" && <em>3</em>}
+              {id === "players" && playerCount !== null && <em>{playerCount}</em>}
             </button>
           ))}
         </nav>
@@ -100,14 +101,11 @@ export function AppShell({
             <StatusPill status={status} />
           </div>
           <div className="sidebar-version">
-            <span>Paldeck Preview</span>
+            <span>Paldeck</span>
             <small>v0.1.0</small>
           </div>
         </div>
 
-        <button className="sidebar-collapse" aria-label={t("收起侧边栏")}>
-          <PanelLeftClose size={16} />
-        </button>
       </aside>
 
       <main className="main-content">{children}</main>

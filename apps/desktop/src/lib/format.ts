@@ -35,3 +35,12 @@ export function formatTime(value: string, locale: AppLocale): string {
     hour12: false,
   }).format(new Date(value));
 }
+
+export function formatBytes(value: number | null, locale: AppLocale): string {
+  if (value === null) return "—";
+  return new Intl.NumberFormat(locale, {
+    style: "unit",
+    unit: value >= 1024 ** 3 ? "gigabyte" : "megabyte",
+    maximumFractionDigits: 1,
+  }).format(value / (value >= 1024 ** 3 ? 1024 ** 3 : 1024 ** 2));
+}

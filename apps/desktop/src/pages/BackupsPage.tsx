@@ -1,33 +1,51 @@
 import {
   Archive,
-  Download,
   HardDrive,
-  MoreHorizontal,
   Plus,
-  RotateCcw,
   ShieldCheck,
 } from "lucide-react";
-import { formatDateTime } from "../lib/format";
-import { mockBackups } from "../lib/mockData";
+import { useCallback, useEffect, useState } from "react";
+import { formatBytes, formatDateTime } from "../lib/format";
+import { fetchBackups, runServerAction } from "../lib/backend";
+import type { Backup, ServerProfile } from "../types/server";
 import { useI18n } from "../i18n/I18nContext";
 
-const kindLabel = {
-  automatic: "自动",
-  manual: "手动",
-  "pre-update": "更新前",
-};
-
-export function BackupsPage() {
-  const { t, locale } = useI18n();
+export function BackupsPage({ profile, onNotice }: { profile: ServerProfile; onNotice: (message: string) => void }) {
+  const { t, locale, errorMessage } = useI18n();
+  const [backups, setBackups] = useState<Backup[]>([]);
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    try {
+      setBackups(await fetchBackups(profile));
+    } catch (error) {
+      onNotice(errorMessage(error));
+    }
+  }, [profile, onNotice, errorMessage]);
+  useEffect(() => void load(), [load]);
+  const createBackup = async () => {
+    setBusy(true);
+    onNotice(t("正在创建备份…"));
+    try {
+      const result = await runServerAction(profile, "backup");
+      if (!result.success) throw new Error(result.stderr || t("创建备份失败"));
+      await load();
+      onNotice(t("备份创建完成"));
+    } catch (error) {
+      onNotice(errorMessage(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const totalBytes = backups.reduce((sum, backup) => sum + backup.sizeBytes, 0);
   return (
     <div className="page">
       <header className="page-header">
         <div>
           <span className="eyebrow">SAVE PROTECTION</span>
           <h1>{t("备份")}</h1>
-          <p>{t("管理远程存档快照；执行恢复前会额外创建安全备份。")}</p>
+          <p>{t("读取容器的真实备份目录，并按需创建新的存档备份。")}</p>
         </div>
-        <button className="button button--primary">
+        <button className="button button--primary" onClick={() => void createBackup()} disabled={busy}>
           <Plus size={17} />
           {t("立即备份")}
         </button>
@@ -40,12 +58,12 @@ export function BackupsPage() {
         </div>
         <div>
           <span>{t("备份策略")}</span>
-          <strong>{t("每天 03:00 自动备份")}</strong>
-          <p>{t("保留最近 30 天 · 当前占用约 834 MB")}</p>
+          <strong>{t("容器备份目录")}</strong>
+          <p>{t("共 {count} 个备份 · 占用 {size}", { count: backups.length, size: formatBytes(totalBytes, locale) })}</p>
         </div>
         <div className="backup-summary__health">
           <ShieldCheck size={17} />
-          {t("策略正常")}
+          {t("已读取真实备份")}
         </div>
       </div>
 
@@ -55,35 +73,22 @@ export function BackupsPage() {
             <span className="eyebrow">SNAPSHOTS</span>
             <h3>{t("最近备份")}</h3>
           </div>
-          <button className="icon-button">
-            <MoreHorizontal size={18} />
-          </button>
         </header>
         <div className="backup-list">
-          {mockBackups.map((backup) => (
-            <div className="backup-row" key={backup.id}>
+          {backups.map((backup) => (
+            <div className="backup-row" key={backup.filename}>
               <div className="backup-row__icon">
                 <HardDrive size={18} />
               </div>
               <div className="backup-row__identity">
                 <strong>{backup.filename}</strong>
                 <span>
-                  {formatDateTime(backup.createdAt, locale)} · {backup.sizeMb} MB
+                  {formatDateTime(new Date(backup.modifiedUnix * 1000).toISOString(), locale)} · {formatBytes(backup.sizeBytes, locale)}
                 </span>
-              </div>
-              <span className={`backup-kind backup-kind--${backup.kind}`}>
-                {t(kindLabel[backup.kind])}
-              </span>
-              <div className="row-actions">
-                <button title={t("下载到本机")}>
-                  <Download size={16} />
-                </button>
-                <button title={t("恢复此备份")}>
-                  <RotateCcw size={16} />
-                </button>
               </div>
             </div>
           ))}
+          {backups.length === 0 && <div className="empty-state">{t("尚无备份")}</div>}
         </div>
       </section>
     </div>

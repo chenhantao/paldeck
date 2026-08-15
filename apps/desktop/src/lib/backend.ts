@@ -5,7 +5,11 @@ import type {
   ConnectionProbe,
   EnvironmentInspection,
   InitializationOptions,
+  Backup,
+  Player,
   ServerProfile,
+  ServerSnapshot,
+  WorldSettings,
 } from "../types/server";
 
 type TauriWindow = Window & { __TAURI_INTERNALS__?: unknown };
@@ -100,4 +104,94 @@ export async function fetchRemoteLogs(
 ): Promise<CommandResult> {
   if (!isDesktopRuntime()) return previewResult;
   return invoke<CommandResult>("read_logs", { profile, tail });
+}
+
+export async function fetchServerSnapshot(
+  profile: ServerProfile,
+): Promise<ServerSnapshot> {
+  if (!isDesktopRuntime()) {
+    return {
+      status: "unknown",
+      serverName: null,
+      version: null,
+      onlinePlayers: null,
+      maxPlayers: null,
+      worldDay: null,
+      restAvailable: false,
+      metrics: {
+        cpuPercent: null,
+        memoryUsedBytes: null,
+        memoryLimitBytes: null,
+        fps: null,
+        uptimeSeconds: null,
+      },
+    };
+  }
+  const snapshot = await invoke<Omit<ServerSnapshot, "metrics"> & {
+    cpuPercent: number | null;
+    memoryUsedBytes: number | null;
+    memoryLimitBytes: number | null;
+    fps: number | null;
+    uptimeSeconds: number | null;
+  }>("server_snapshot", { profile });
+  return {
+    status: snapshot.status,
+    serverName: snapshot.serverName,
+    version: snapshot.version,
+    onlinePlayers: snapshot.onlinePlayers,
+    maxPlayers: snapshot.maxPlayers,
+    worldDay: snapshot.worldDay,
+    restAvailable: snapshot.restAvailable,
+    metrics: {
+      cpuPercent: snapshot.cpuPercent,
+      memoryUsedBytes: snapshot.memoryUsedBytes,
+      memoryLimitBytes: snapshot.memoryLimitBytes,
+      fps: snapshot.fps,
+      uptimeSeconds: snapshot.uptimeSeconds,
+    },
+  };
+}
+
+export async function fetchOnlinePlayers(
+  profile: ServerProfile,
+): Promise<Player[]> {
+  if (!isDesktopRuntime()) return [];
+  return invoke<Player[]>("online_players", { profile });
+}
+
+export async function runPlayerAction(
+  profile: ServerProfile,
+  action: "announce" | "kick" | "ban",
+  userId: string | null,
+  message: string,
+): Promise<CommandResult> {
+  if (!isDesktopRuntime()) return previewResult;
+  return invoke<CommandResult>("player_action", {
+    profile,
+    action,
+    userId,
+    message,
+  });
+}
+
+export async function fetchBackups(profile: ServerProfile): Promise<Backup[]> {
+  if (!isDesktopRuntime()) return [];
+  return invoke<Backup[]>("list_backups", { profile });
+}
+
+export async function fetchWorldSettings(
+  profile: ServerProfile,
+): Promise<WorldSettings> {
+  if (!isDesktopRuntime()) {
+    throw new Error("Preview：桌面运行时中才会读取远程配置");
+  }
+  return invoke<WorldSettings>("read_world_settings", { profile });
+}
+
+export async function saveWorldSettings(
+  profile: ServerProfile,
+  settings: WorldSettings,
+): Promise<CommandResult> {
+  if (!isDesktopRuntime()) return previewResult;
+  return invoke<CommandResult>("write_world_settings", { profile, settings });
 }

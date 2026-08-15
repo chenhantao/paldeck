@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConnectionDialog } from "./components/ConnectionDialog";
 import { SetupWizard } from "./components/SetupWizard";
 import { AppShell, type PageId } from "./components/layout/AppShell";
@@ -7,15 +7,15 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { LogsPage } from "./pages/LogsPage";
 import { PlayersPage } from "./pages/PlayersPage";
 import { SettingsPage } from "./pages/SettingsPage";
-import { mockSnapshot } from "./lib/mockData";
 import {
+  fetchServerSnapshot,
   isDesktopRuntime,
   runComposeAction,
   runServerAction,
 } from "./lib/backend";
 import { profileNeedsPassword } from "./lib/profile";
 import { loadProfile, saveProfile } from "./lib/profileStore";
-import type { ServerProfile } from "./types/server";
+import type { ServerProfile, ServerSnapshot } from "./types/server";
 import { useI18n } from "./i18n/I18nContext";
 
 export function App() {
@@ -29,6 +29,24 @@ export function App() {
   );
   const [connectionOpen, setConnectionOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [snapshot, setSnapshot] = useState<ServerSnapshot>(emptySnapshot);
+  const snapshotError = useRef<string | null>(null);
+
+  const refreshSnapshot = useCallback(async () => {
+    if (!profile || profileNeedsPassword(profile)) {
+      setSnapshot(emptySnapshot);
+      return;
+    }
+    try {
+      setSnapshot(await fetchServerSnapshot(profile));
+      snapshotError.current = null;
+    } catch (error) {
+      setSnapshot(emptySnapshot);
+      const message = errorMessage(error);
+      if (snapshotError.current !== message) setNotice(message);
+      snapshotError.current = message;
+    }
+  }, [profile, errorMessage]);
 
   useEffect(() => {
     if (profile && profileNeedsPassword(profile)) {
@@ -36,28 +54,38 @@ export function App() {
     }
   }, [profile]);
 
+  useEffect(() => {
+    void refreshSnapshot();
+    const timer = window.setInterval(() => void refreshSnapshot(), 15_000);
+    return () => window.clearInterval(timer);
+  }, [refreshSnapshot]);
+
   const content = useMemo(() => {
     if (!profile) return null;
     switch (page) {
       case "players":
-        return <PlayersPage />;
+        return <PlayersPage profile={profile} onNotice={setNotice} />;
       case "logs":
-        return <LogsPage />;
+        return <LogsPage profile={profile} onNotice={setNotice} />;
       case "settings":
-        return <SettingsPage onSaved={() => setNotice(t("配置草稿已保存"))} />;
+        return <SettingsPage profile={profile} onNotice={setNotice} />;
       case "backups":
-        return <BackupsPage />;
+        return <BackupsPage profile={profile} onNotice={setNotice} />;
       default:
         return (
           <DashboardPage
-            snapshot={mockSnapshot}
+            profile={profile}
+            snapshot={snapshot}
             onOpenLogs={() => setPage("logs")}
+            onOpenPlayers={() => setPage("players")}
             onNotice={setNotice}
             onComposeAction={async (action) => {
+              setNotice(t(composeProgressMessage[action]));
               const result = await runComposeAction(profile, action);
               if (!result.success) {
                 throw new Error(errorMessage(result.stderr || t("远程 Compose 操作失败")));
               }
+              await refreshSnapshot();
               setNotice(
                 isDesktopRuntime()
                   ? t("远程 Compose 操作已完成")
@@ -78,7 +106,7 @@ export function App() {
           />
         );
     }
-  }, [page, profile, t, errorMessage]);
+  }, [page, profile, snapshot, t, errorMessage, refreshSnapshot]);
 
   if (setupOpen || !profile) {
     return (
@@ -100,7 +128,8 @@ export function App() {
         page={page}
         onPageChange={setPage}
         profile={profile}
-        status={mockSnapshot.status}
+        status={snapshot.status}
+        playerCount={snapshot.onlinePlayers}
         onOpenConnection={() => setConnectionOpen(true)}
       >
         {content}
@@ -131,3 +160,27 @@ export function App() {
     </>
   );
 }
+
+const emptySnapshot: ServerSnapshot = {
+  status: "unknown",
+  serverName: null,
+  version: null,
+  onlinePlayers: null,
+  maxPlayers: null,
+  worldDay: null,
+  restAvailable: false,
+  metrics: {
+    cpuPercent: null,
+    memoryUsedBytes: null,
+    memoryLimitBytes: null,
+    fps: null,
+    uptimeSeconds: null,
+  },
+};
+
+const composeProgressMessage = {
+  start: "正在启动服务器…",
+  stop: "正在停止服务器…",
+  restart: "正在重启服务器…",
+  pull: "正在拉取服务器镜像…",
+} as const;
