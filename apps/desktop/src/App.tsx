@@ -68,7 +68,19 @@ export function App() {
       case "logs":
         return <LogsPage profile={profile} onNotice={setNotice} />;
       case "settings":
-        return <SettingsPage profile={profile} onNotice={setNotice} />;
+        return (
+          <SettingsPage
+            profile={profile}
+            onNotice={setNotice}
+            onApplySettings={async () => {
+              const result = await runComposeAction(profile, "restart");
+              if (!result.success) {
+                throw new Error(errorMessage(result.stderr || t("远程 Compose 操作失败")));
+              }
+              await refreshSnapshot();
+            }}
+          />
+        );
       case "backups":
         return <BackupsPage profile={profile} onNotice={setNotice} />;
       default:
@@ -93,13 +105,18 @@ export function App() {
               );
             }}
             onSaveWorld={async () => {
+              setNotice(t("正在保存世界…"));
               const result = await runServerAction(profile, "save");
               if (!result.success) {
                 throw new Error(errorMessage(result.stderr || t("保存世界失败")));
               }
               setNotice(
                 isDesktopRuntime()
-                  ? t("世界保存完成")
+                  ? t(
+                      result.stdout.includes("PALDECK_SAVE_VERIFIED=1")
+                        ? "世界保存完成，已确认存档文件更新"
+                        : "世界保存请求已由 REST API 接受",
+                    )
                   : t("Preview：桌面运行时中才会发送保存命令"),
               );
             }}

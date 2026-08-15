@@ -19,6 +19,182 @@ const ENV_TEMPLATE: &str = include_str!("../../../../.env.example");
 const COMPOSE_COMMAND: &str =
     "docker compose --project-directory . --env-file ./.env -f ./compose.yaml";
 
+const WORLD_SETTING_DEFAULTS: &[(&str, &str)] = &[
+    ("SERVER_NAME", "My Palworld Server"),
+    ("SERVER_DESCRIPTION", "Private Palworld dedicated server"),
+    ("SERVER_PASSWORD", ""),
+    ("PLAYERS", "8"),
+    ("REGION", ""),
+    ("CROSSPLAY_PLATFORMS", "(Steam,Xbox,PS5,Mac)"),
+    ("DIFFICULTY", "None"),
+    ("RANDOMIZER_TYPE", ""),
+    ("RANDOMIZER_SEED", "none"),
+    ("DAYTIME_SPEEDRATE", "1.000000"),
+    ("NIGHTTIME_SPEEDRATE", "1.000000"),
+    ("EXP_RATE", "1.000000"),
+    ("PAL_CAPTURE_RATE", "1.000000"),
+    ("PAL_SPAWN_NUM_RATE", "1.000000"),
+    ("PAL_DAMAGE_RATE_ATTACK", "1.000000"),
+    ("PAL_DAMAGE_RATE_DEFENSE", "1.000000"),
+    ("PLAYER_DAMAGE_RATE_ATTACK", "1.000000"),
+    ("PLAYER_DAMAGE_RATE_DEFENSE", "1.000000"),
+    ("PLAYER_STOMACH_DECREASE_RATE", "1.000000"),
+    ("PLAYER_STAMINA_DECREASE_RATE", "1.000000"),
+    ("PLAYER_AUTO_HP_REGEN_RATE", "1.000000"),
+    ("PLAYER_AUTO_HP_REGEN_RATE_IN_SLEEP", "1.000000"),
+    ("PAL_STOMACH_DECREASE_RATE", "1.000000"),
+    ("PAL_STAMINA_DECREASE_RATE", "1.000000"),
+    ("PAL_AUTO_HP_REGEN_RATE", "1.000000"),
+    ("PAL_AUTO_HP_REGEN_RATE_IN_SLEEP", "1.000000"),
+    ("BUILD_OBJECT_HP_RATE", "1.000000"),
+    ("BUILD_OBJECT_DAMAGE_RATE", "1.000000"),
+    ("BUILD_OBJECT_DETERIORATION_DAMAGE_RATE", "1.000000"),
+    ("COLLECTION_DROP_RATE", "1.000000"),
+    ("COLLECTION_OBJECT_HP_RATE", "1.000000"),
+    ("COLLECTION_OBJECT_RESPAWN_SPEED_RATE", "1.000000"),
+    ("ENEMY_DROP_ITEM_RATE", "1.000000"),
+    ("DEATH_PENALTY", "Item"),
+    ("ENABLE_PLAYER_TO_PLAYER_DAMAGE", "false"),
+    ("ENABLE_FRIENDLY_FIRE", "false"),
+    ("ENABLE_INVADER_ENEMY", "true"),
+    ("ACTIVE_UNKO", "false"),
+    ("ENABLE_AIM_ASSIST_PAD", "true"),
+    ("ENABLE_AIM_ASSIST_KEYBOARD", "false"),
+    ("DROP_ITEM_MAX_NUM", "3000"),
+    ("DROP_ITEM_MAX_NUM_UNKO", "100"),
+    ("BASE_CAMP_MAX_NUM", "128"),
+    ("BASE_CAMP_WORKER_MAX_NUM", "15"),
+    ("DROP_ITEM_ALIVE_MAX_HOURS", "1.000000"),
+    ("AUTO_RESET_GUILD_NO_ONLINE_PLAYERS", "false"),
+    ("AUTO_RESET_GUILD_TIME_NO_ONLINE_PLAYERS", "72.000000"),
+    ("GUILD_PLAYER_MAX_NUM", "20"),
+    ("BASE_CAMP_MAX_NUM_IN_GUILD", "4"),
+    ("PAL_EGG_DEFAULT_HATCHING_TIME", "1.000000"),
+    ("WORK_SPEED_RATE", "1.000000"),
+    ("AUTO_SAVE_SPAN", "30.000000"),
+    ("IS_MULTIPLAY", "true"),
+    ("IS_PVP", "false"),
+    ("HARDCORE", "false"),
+    ("PAL_LOST", "false"),
+    ("CAN_PICKUP_OTHER_GUILD_DEATH_PENALTY_DROP", "false"),
+    ("ENABLE_NON_LOGIN_PENALTY", "true"),
+    ("ENABLE_FAST_TRAVEL", "true"),
+    ("IS_START_LOCATION_SELECT_BY_MAP", "true"),
+    ("EXIST_PLAYER_AFTER_LOGOUT", "false"),
+    ("ENABLE_DEFENSE_OTHER_GUILD_PLAYER", "false"),
+    ("INVISIBLE_OTHER_GUILD_BASE_CAMP_AREA_FX", "false"),
+    ("BUILD_AREA_LIMIT", "false"),
+    ("ITEM_WEIGHT_RATE", "1.000000"),
+    ("COOP_PLAYER_MAX_NUM", "4"),
+    ("USEAUTH", "true"),
+    (
+        "BAN_LIST_URL",
+        "https://api.palworldgame.com/api/banlist.txt",
+    ),
+    ("SHOW_PLAYER_LIST", "true"),
+    ("ENABLE_PREDATOR_BOSS_PAL", "true"),
+    ("MAX_BUILDING_LIMIT_NUM", "0"),
+    ("SERVER_REPLICATE_PAWN_CULL_DISTANCE", "15000.000000"),
+    (
+        "SERVER_REPLICATE_PAWN_CULL_DISTANCE_IN_BASE_CAMP",
+        "5000.000000",
+    ),
+    ("USE_BACKUP_SAVE_DATA", "true"),
+    ("ALLOW_CLIENT_MOD", "true"),
+    ("ALLOW_GLOBAL_PALBOX_EXPORT", "true"),
+    ("ALLOW_GLOBAL_PALBOX_IMPORT", "false"),
+    ("EQUIPMENT_DURABILITY_DAMAGE_RATE", "1.000000"),
+    ("ITEM_CONTAINER_FORCE_MARK_DIRTY_INTERVAL", "1.000000"),
+];
+
+const STRING_WORLD_SETTINGS: &[&str] = &[
+    "SERVER_NAME",
+    "SERVER_DESCRIPTION",
+    "SERVER_PASSWORD",
+    "REGION",
+    "CROSSPLAY_PLATFORMS",
+    "RANDOMIZER_SEED",
+    "BAN_LIST_URL",
+];
+
+const BOOL_WORLD_SETTINGS: &[&str] = &[
+    "ENABLE_PLAYER_TO_PLAYER_DAMAGE",
+    "ENABLE_FRIENDLY_FIRE",
+    "ENABLE_INVADER_ENEMY",
+    "ACTIVE_UNKO",
+    "ENABLE_AIM_ASSIST_PAD",
+    "ENABLE_AIM_ASSIST_KEYBOARD",
+    "AUTO_RESET_GUILD_NO_ONLINE_PLAYERS",
+    "IS_MULTIPLAY",
+    "IS_PVP",
+    "HARDCORE",
+    "PAL_LOST",
+    "CAN_PICKUP_OTHER_GUILD_DEATH_PENALTY_DROP",
+    "ENABLE_NON_LOGIN_PENALTY",
+    "ENABLE_FAST_TRAVEL",
+    "IS_START_LOCATION_SELECT_BY_MAP",
+    "EXIST_PLAYER_AFTER_LOGOUT",
+    "ENABLE_DEFENSE_OTHER_GUILD_PLAYER",
+    "INVISIBLE_OTHER_GUILD_BASE_CAMP_AREA_FX",
+    "BUILD_AREA_LIMIT",
+    "USEAUTH",
+    "SHOW_PLAYER_LIST",
+    "ENABLE_PREDATOR_BOSS_PAL",
+    "USE_BACKUP_SAVE_DATA",
+    "ALLOW_CLIENT_MOD",
+    "ALLOW_GLOBAL_PALBOX_EXPORT",
+    "ALLOW_GLOBAL_PALBOX_IMPORT",
+];
+
+const INTEGER_WORLD_SETTINGS: &[&str] = &[
+    "PLAYERS",
+    "DROP_ITEM_MAX_NUM",
+    "DROP_ITEM_MAX_NUM_UNKO",
+    "BASE_CAMP_MAX_NUM",
+    "BASE_CAMP_WORKER_MAX_NUM",
+    "GUILD_PLAYER_MAX_NUM",
+    "BASE_CAMP_MAX_NUM_IN_GUILD",
+    "COOP_PLAYER_MAX_NUM",
+    "MAX_BUILDING_LIMIT_NUM",
+];
+
+const NUMBER_WORLD_SETTINGS: &[&str] = &[
+    "DAYTIME_SPEEDRATE",
+    "NIGHTTIME_SPEEDRATE",
+    "EXP_RATE",
+    "PAL_CAPTURE_RATE",
+    "PAL_SPAWN_NUM_RATE",
+    "PAL_DAMAGE_RATE_ATTACK",
+    "PAL_DAMAGE_RATE_DEFENSE",
+    "PLAYER_DAMAGE_RATE_ATTACK",
+    "PLAYER_DAMAGE_RATE_DEFENSE",
+    "PLAYER_STOMACH_DECREASE_RATE",
+    "PLAYER_STAMINA_DECREASE_RATE",
+    "PLAYER_AUTO_HP_REGEN_RATE",
+    "PLAYER_AUTO_HP_REGEN_RATE_IN_SLEEP",
+    "PAL_STOMACH_DECREASE_RATE",
+    "PAL_STAMINA_DECREASE_RATE",
+    "PAL_AUTO_HP_REGEN_RATE",
+    "PAL_AUTO_HP_REGEN_RATE_IN_SLEEP",
+    "BUILD_OBJECT_HP_RATE",
+    "BUILD_OBJECT_DAMAGE_RATE",
+    "BUILD_OBJECT_DETERIORATION_DAMAGE_RATE",
+    "COLLECTION_DROP_RATE",
+    "COLLECTION_OBJECT_HP_RATE",
+    "COLLECTION_OBJECT_RESPAWN_SPEED_RATE",
+    "ENEMY_DROP_ITEM_RATE",
+    "DROP_ITEM_ALIVE_MAX_HOURS",
+    "AUTO_RESET_GUILD_TIME_NO_ONLINE_PLAYERS",
+    "PAL_EGG_DEFAULT_HATCHING_TIME",
+    "WORK_SPEED_RATE",
+    "AUTO_SAVE_SPAN",
+    "ITEM_WEIGHT_RATE",
+    "SERVER_REPLICATE_PAWN_CULL_DISTANCE",
+    "SERVER_REPLICATE_PAWN_CULL_DISTANCE_IN_BASE_CAMP",
+    "EQUIPMENT_DURABILITY_DAMAGE_RATE",
+    "ITEM_CONTAINER_FORCE_MARK_DIRTY_INTERVAL",
+];
+
 #[tauri::command]
 pub async fn probe_connection(profile: ServerProfile) -> Result<ConnectionProbe, String> {
     probe_remote_connection(profile).await
@@ -73,7 +249,8 @@ pub async fn inspect_environment(profile: ServerProfile) -> Result<EnvironmentIn
            if [ \"$paldeck_data_safe\" = 1 ]; then \
              paldeck_data_top=\"${{paldeck_data_relative%%/*}}\"; \
              if [ -n \"$(find \"$paldeck_dir\" -mindepth 1 -maxdepth 1 \
-               ! -name {marker} ! -name compose.yaml ! -name .env ! -name .env.paldeck.bak \
+               ! -name {marker} ! -name compose.yaml ! -name compose.yaml.paldeck.bak \
+               ! -name .env ! -name .env.paldeck.bak \
                ! -name \"$paldeck_data_top\" -print -quit 2>/dev/null)\" ]; \
              then printf 'PALDECK_UNEXPECTED_ENTRIES=1\\n'; else printf 'PALDECK_UNEXPECTED_ENTRIES=0\\n'; fi; \
            else printf 'PALDECK_UNEXPECTED_ENTRIES=0\\n'; fi; \
@@ -356,9 +533,7 @@ pub async fn player_action(
     user_id: Option<String>,
     message: String,
 ) -> Result<CommandResult, String> {
-    if message.len() > 512 || message.contains(['\0', '\n', '\r']) {
-        return Err("消息长度或内容无效".into());
-    }
+    validate_player_message(&message)?;
     let (api, payload) = match action.as_str() {
         "announce" => {
             if message.trim().is_empty() {
@@ -392,6 +567,13 @@ pub async fn player_action(
         ),
     )?;
     run_remote(&profile, &command).await
+}
+
+fn validate_player_message(message: &str) -> Result<(), String> {
+    if message.chars().count() > 512 || message.contains(['\0', '\n', '\r']) {
+        return Err("消息长度或内容无效".into());
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -445,7 +627,8 @@ pub async fn compose_action(
     let compose_command = match action.as_str() {
         "start" => format!("{COMPOSE_COMMAND} up -d"),
         "stop" => format!("{COMPOSE_COMMAND} down"),
-        "restart" => format!("{COMPOSE_COMMAND} restart"),
+        // Recreate the container so changes written to .env are applied.
+        "restart" => format!("{COMPOSE_COMMAND} up -d --force-recreate"),
         "pull" => format!("{COMPOSE_COMMAND} pull"),
         _ => return Err("不支持的 Compose 操作".into()),
     };
@@ -464,13 +647,44 @@ pub async fn server_action(
     action: String,
 ) -> Result<CommandResult, String> {
     let container_command = match action.as_str() {
-        "save" => format!("{COMPOSE_COMMAND} exec -T palworld rest-cli save"),
+        "save" => save_world_script(),
         "backup" => format!("{COMPOSE_COMMAND} exec -T palworld backup"),
         _ => return Err("不支持的服务器操作".into()),
     };
 
     let command = in_compose_directory(&profile, &container_command)?;
     run_remote(&profile, &command).await
+}
+
+fn save_world_script() -> String {
+    let data_guard = data_directory_guard("./.env");
+    format!(
+        "{data_guard}; \
+         save_root=\"$paldeck_data_path/Pal/Saved/SaveGames\"; \
+         save_state() {{ \
+           if [ ! -d \"$save_root\" ] || [ -L \"$save_root\" ]; then return 0; fi; \
+           resolved_save_root=\"$(realpath -e -- \"$save_root\" 2>/dev/null || true)\"; \
+           case \"$resolved_save_root\" in \"$paldeck_data_path\"/*) ;; *) return 0 ;; esac; \
+           find \"$resolved_save_root\" -maxdepth 3 -type f -name Level.sav \
+             -exec stat -c '%n:%y:%s' -- {{}} + 2>/dev/null | sort; \
+         }}; \
+         before=\"$(save_state)\"; \
+         set +e; \
+         save_output=\"$({COMPOSE_COMMAND} exec -T palworld rest-cli save --no-flush-log 2>&1)\"; \
+         save_exit=$?; set -e; \
+         if [ \"$save_exit\" -ne 0 ]; then \
+           printf '%s\\n' \"$save_output\" >&2; exit \"$save_exit\"; \
+         fi; \
+         verified=0; after=\"$(save_state)\"; attempts=0; \
+         while [ -n \"$before\" ] && [ \"$after\" = \"$before\" ] && [ \"$attempts\" -lt 10 ]; do \
+           sleep 1; attempts=$((attempts + 1)); after=\"$(save_state)\"; \
+         done; \
+         if [ -n \"$before\" ] && [ \"$after\" = \"$before\" ]; then \
+           printf 'REST API 已接受保存请求，但未检测到 Level.sav 更新。\\n' >&2; exit 75; \
+         fi; \
+         if [ -n \"$before\" ] && [ -n \"$after\" ]; then verified=1; fi; \
+         printf '%s\\nPALDECK_SAVE_VERIFIED=%s\\n' \"$save_output\" \"$verified\""
+    )
 }
 
 #[tauri::command]
@@ -524,28 +738,73 @@ pub async fn write_env(profile: ServerProfile, contents: String) -> Result<Comma
     run_remote(&profile, &command).await
 }
 
+async fn upgrade_compose_template(profile: ServerProfile) -> Result<(), String> {
+    let script = upgrade_compose_script();
+    let command = in_compose_directory(&profile, &script)?;
+    let result = run_remote(&profile, &command).await?;
+    if !result.success {
+        return Err(command_error(&result, "无法升级 Paldeck Compose 模板"));
+    }
+    Ok(())
+}
+
+fn upgrade_compose_script() -> String {
+    let compose_hash = compose_template_hash();
+    let compose_encoded = BASE64_STANDARD.encode(COMPOSE_TEMPLATE.as_bytes());
+    format!(
+        "if grep -Fqx {expected_hash} {marker}; then exit 0; fi; \
+         umask 077; \
+         compose_tmp=\"$(mktemp -p . .paldeck-compose-upgrade.XXXXXX)\"; \
+         marker_tmp=\"$(mktemp -p . .paldeck-marker-upgrade.XXXXXX)\"; \
+         compose_backup=\"$(mktemp -p . .paldeck-compose-backup.XXXXXX)\"; \
+         marker_backup=\"$(mktemp -p . .paldeck-marker-backup.XXXXXX)\"; \
+         backup_ready=0; upgraded=0; \
+         rollback() {{ \
+           if [ \"$backup_ready\" = 1 ] && [ \"$upgraded\" != 1 ]; then \
+             cp -p -- \"$compose_backup\" ./compose.yaml 2>/dev/null || true; \
+             cp -p -- \"$marker_backup\" {marker} 2>/dev/null || true; \
+           fi; \
+           rm -f -- \"$compose_tmp\" \"$marker_tmp\" \"$compose_backup\" \"$marker_backup\"; \
+         }}; \
+         trap rollback EXIT HUP INT TERM; \
+         cp -p -- ./compose.yaml \"$compose_backup\"; \
+         cp -p -- {marker} \"$marker_backup\"; \
+         backup_ready=1; \
+         printf %s {compose} | base64 --decode > \"$compose_tmp\"; \
+         printf '%s\\nCOMPOSE_SHA256=%s\\n' {marker_content} {hash} > \"$marker_tmp\"; \
+         docker compose --project-directory . --env-file ./.env -f \"$compose_tmp\" config --quiet; \
+         if [ -L ./compose.yaml.paldeck.bak ]; then \
+           printf 'Compose 备份路径是符号链接，已拒绝升级。\\n' >&2; exit 74; \
+         fi; \
+         cp -p -- ./compose.yaml ./compose.yaml.paldeck.bak; \
+         mv -- \"$compose_tmp\" ./compose.yaml; \
+         mv -- \"$marker_tmp\" {marker}; \
+         upgraded=1; \
+         trap - EXIT HUP INT TERM; \
+         rm -f -- \"$compose_backup\" \"$marker_backup\"",
+        expected_hash = shell_quote(&format!("COMPOSE_SHA256={compose_hash}")),
+        marker = shell_quote(MANAGED_MARKER_FILE),
+        compose = shell_quote(&compose_encoded),
+        marker_content = shell_quote(MANAGED_MARKER_CONTENT),
+        hash = shell_quote(&compose_hash),
+    )
+}
+
 #[tauri::command]
 pub async fn read_world_settings(profile: ServerProfile) -> Result<WorldSettingsOutput, String> {
     let result = read_env(profile).await?;
     if !result.success {
         return Err(command_error(&result, "无法读取世界配置"));
     }
-    Ok(WorldSettingsOutput {
-        server_name: env_string(&result.stdout, "SERVER_NAME")?,
-        server_description: env_string(&result.stdout, "SERVER_DESCRIPTION")?,
-        server_password: env_string(&result.stdout, "SERVER_PASSWORD")?,
-        max_players: env_parse(&result.stdout, "PLAYERS")?,
-        exp_rate: env_parse(&result.stdout, "EXP_RATE")?,
-        capture_rate: env_parse(&result.stdout, "PAL_CAPTURE_RATE")?,
-        spawn_rate: env_parse(&result.stdout, "PAL_SPAWN_NUM_RATE")?,
-        work_speed_rate: env_parse(&result.stdout, "WORK_SPEED_RATE")?,
-        egg_hatching_time: env_parse(&result.stdout, "PAL_EGG_DEFAULT_HATCHING_TIME")?,
-        death_penalty: env_string(&result.stdout, "DEATH_PENALTY")?,
-        pvp: env_bool(&result.stdout, "IS_PVP")?,
-        friendly_fire: env_bool(&result.stdout, "ENABLE_FRIENDLY_FIRE")?,
-        fast_travel: env_bool(&result.stdout, "ENABLE_FAST_TRAVEL")?,
-        allow_client_mod: env_bool(&result.stdout, "ALLOW_CLIENT_MOD")?,
-    })
+    let values = WORLD_SETTING_DEFAULTS
+        .iter()
+        .map(|(key, default)| {
+            let value =
+                env_string_optional(&result.stdout, key).unwrap_or_else(|| default.to_string());
+            ((*key).to_string(), value)
+        })
+        .collect();
+    Ok(WorldSettingsOutput { values })
 }
 
 #[tauri::command]
@@ -554,76 +813,114 @@ pub async fn write_world_settings(
     settings: WorldSettingsInput,
 ) -> Result<CommandResult, String> {
     validate_world_settings(&settings)?;
+    upgrade_compose_template(profile.clone()).await?;
     let current = read_env(profile.clone()).await?;
     if !current.success {
         return Err(command_error(&current, "无法读取现有世界配置"));
     }
     let mut contents = current.stdout;
-    for (key, value) in [
-        ("SERVER_NAME", dotenv_quote(&settings.server_name)),
-        (
-            "SERVER_DESCRIPTION",
-            dotenv_quote(&settings.server_description),
-        ),
-        ("SERVER_PASSWORD", dotenv_quote(&settings.server_password)),
-        ("PLAYERS", settings.max_players.to_string()),
-        ("EXP_RATE", format_rate(settings.exp_rate)),
-        ("PAL_CAPTURE_RATE", format_rate(settings.capture_rate)),
-        ("PAL_SPAWN_NUM_RATE", format_rate(settings.spawn_rate)),
-        ("WORK_SPEED_RATE", format_rate(settings.work_speed_rate)),
-        (
-            "PAL_EGG_DEFAULT_HATCHING_TIME",
-            format_rate(settings.egg_hatching_time),
-        ),
-        ("DEATH_PENALTY", settings.death_penalty.clone()),
-        ("IS_PVP", settings.pvp.to_string()),
-        ("ENABLE_FRIENDLY_FIRE", settings.friendly_fire.to_string()),
-        ("ENABLE_FAST_TRAVEL", settings.fast_travel.to_string()),
-        ("ALLOW_CLIENT_MOD", settings.allow_client_mod.to_string()),
-    ] {
-        set_env_value(&mut contents, key, &value)?;
+    for (key, _) in WORLD_SETTING_DEFAULTS {
+        let value = settings
+            .values
+            .get(*key)
+            .ok_or_else(|| format!("世界配置缺少变量 {key}"))?;
+        upsert_env_value(&mut contents, key, &world_setting_env_value(key, value));
     }
     write_env(profile, contents).await
 }
 
 fn validate_world_settings(settings: &WorldSettingsInput) -> Result<(), String> {
-    if settings.server_name.trim().is_empty() || settings.server_name.len() > 128 {
-        return Err("服务器名称长度无效".into());
+    if settings.values.len() != WORLD_SETTING_DEFAULTS.len() {
+        return Err("世界配置变量数量不正确".into());
     }
-    if settings.server_description.len() > 512 || settings.server_password.len() > 128 {
-        return Err("服务器描述或密码过长".into());
+    for (key, _) in WORLD_SETTING_DEFAULTS {
+        let value = settings
+            .values
+            .get(*key)
+            .ok_or_else(|| format!("世界配置缺少变量 {key}"))?;
+        validate_world_setting(key, value)?;
     }
-    if !(1..=32).contains(&settings.max_players) {
-        return Err("玩家数量必须在 1 到 32 之间".into());
-    }
-    for value in [
-        settings.exp_rate,
-        settings.capture_rate,
-        settings.spawn_rate,
-        settings.work_speed_rate,
-        settings.egg_hatching_time,
-    ] {
-        if !value.is_finite() || !(0.0..=10.0).contains(&value) {
-            return Err("世界倍率必须在 0 到 10 之间".into());
-        }
-    }
-    if !["None", "Item", "ItemAndEquipment", "All"].contains(&settings.death_penalty.as_str()) {
-        return Err("死亡惩罚配置无效".into());
-    }
-    for value in [
-        &settings.server_name,
-        &settings.server_description,
-        &settings.server_password,
-    ] {
-        if value.contains(['\0', '\n', '\r']) {
-            return Err("世界配置不能包含换行或空字符".into());
-        }
+    if settings.values.keys().any(|key| {
+        !WORLD_SETTING_DEFAULTS
+            .iter()
+            .any(|(allowed, _)| key == allowed)
+    }) {
+        return Err("世界配置包含不受支持的变量".into());
     }
     Ok(())
 }
 
-fn format_rate(value: f64) -> String {
-    format!("{value:.6}")
+fn validate_world_setting(key: &str, value: &str) -> Result<(), String> {
+    if value.len() > 512 || value.contains(['\0', '\n', '\r']) {
+        return Err(format!("世界配置变量 {key} 的长度或内容无效"));
+    }
+    if BOOL_WORLD_SETTINGS.contains(&key) {
+        if !matches!(value.to_ascii_lowercase().as_str(), "true" | "false") {
+            return Err(format!("世界配置变量 {key} 必须为 true 或 false"));
+        }
+    } else if INTEGER_WORLD_SETTINGS.contains(&key) {
+        let number: u64 = value
+            .parse()
+            .map_err(|_| format!("世界配置变量 {key} 必须为非负整数"))?;
+        if number > 1_000_000 {
+            return Err(format!("世界配置变量 {key} 超出允许范围"));
+        }
+    } else if NUMBER_WORLD_SETTINGS.contains(&key) {
+        let number: f64 = value
+            .parse()
+            .map_err(|_| format!("世界配置变量 {key} 必须为数字"))?;
+        if !number.is_finite() || !(0.0..=1_000_000.0).contains(&number) {
+            return Err(format!("世界配置变量 {key} 超出允许范围"));
+        }
+    }
+    match key {
+        "SERVER_NAME" if value.trim().is_empty() || value.chars().count() > 128 => {
+            return Err("服务器名称长度无效".into());
+        }
+        "SERVER_PASSWORD" if value.chars().count() > 128 => {
+            return Err("服务器密码不能超过 128 个字符".into());
+        }
+        "PLAYERS" if !(1..=32).contains(&value.parse::<u64>().unwrap_or_default()) => {
+            return Err("玩家数量必须在 1 到 32 之间".into());
+        }
+        "BASE_CAMP_WORKER_MAX_NUM"
+            if !(1..=50).contains(&value.parse::<u64>().unwrap_or_default()) =>
+        {
+            return Err("每个基地的帕鲁数量必须在 1 到 50 之间".into());
+        }
+        "BASE_CAMP_MAX_NUM_IN_GUILD"
+            if !(1..=10).contains(&value.parse::<u64>().unwrap_or_default()) =>
+        {
+            return Err("每个公会的基地数量必须在 1 到 10 之间".into());
+        }
+        "DEATH_PENALTY" if !["None", "Item", "ItemAndEquipment", "All"].contains(&value) => {
+            return Err("死亡惩罚配置无效".into());
+        }
+        "DIFFICULTY" if !["None", "Normal", "Difficult"].contains(&value) => {
+            return Err("难度配置无效".into());
+        }
+        "RANDOMIZER_TYPE" if !["", "None", "Region", "All"].contains(&value) => {
+            return Err("随机化配置无效".into());
+        }
+        "CROSSPLAY_PLATFORMS"
+            if value.is_empty()
+                || !value.chars().all(|character| {
+                    character.is_ascii_alphanumeric() || "(),".contains(character)
+                }) =>
+        {
+            return Err("跨平台配置无效".into());
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn world_setting_env_value(key: &str, value: &str) -> String {
+    if STRING_WORLD_SETTINGS.contains(&key) {
+        dotenv_quote(value)
+    } else {
+        value.to_string()
+    }
 }
 
 fn env_raw<'a>(contents: &'a str, key: &str) -> Result<&'a str, String> {
@@ -645,18 +942,8 @@ fn env_string(contents: &str, key: &str) -> Result<String, String> {
     }
 }
 
-fn env_parse<T: std::str::FromStr>(contents: &str, key: &str) -> Result<T, String> {
-    env_string(contents, key)?
-        .parse()
-        .map_err(|_| format!("环境配置变量 {key} 的值无效"))
-}
-
-fn env_bool(contents: &str, key: &str) -> Result<bool, String> {
-    match env_string(contents, key)?.to_ascii_lowercase().as_str() {
-        "true" | "1" => Ok(true),
-        "false" | "0" => Ok(false),
-        _ => Err(format!("环境配置变量 {key} 的布尔值无效")),
-    }
+fn env_string_optional(contents: &str, key: &str) -> Option<String> {
+    env_string(contents, key).ok()
 }
 
 fn command_error(result: &CommandResult, fallback: &str) -> String {
@@ -798,11 +1085,23 @@ fn set_env_value(contents: &mut String, key: &str, value: &str) -> Result<(), St
     Ok(())
 }
 
+fn upsert_env_value(contents: &mut String, key: &str, value: &str) {
+    if set_env_value(contents, key, value).is_ok() {
+        return;
+    }
+    if !contents.ends_with('\n') {
+        contents.push('\n');
+    }
+    contents.push_str(&format!("{key}={value}\n"));
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        dotenv_quote, env_bool, env_string, inspection_flag, inspection_value, parse_memory_usage,
-        server_snapshot_script, set_env_value, validate_data_directory, validate_world_settings,
+        dotenv_quote, env_string, inspection_flag, inspection_value, parse_memory_usage,
+        save_world_script, server_snapshot_script, set_env_value, upgrade_compose_script,
+        validate_data_directory, validate_player_message, validate_world_settings,
+        COMPOSE_TEMPLATE, ENV_TEMPLATE, WORLD_SETTING_DEFAULTS,
     };
     use crate::models::WorldSettingsInput;
 
@@ -865,37 +1164,70 @@ mod tests {
     fn reads_only_requested_environment_values() {
         let contents = "SERVER_NAME='Pal Server'\nIS_PVP=false\nADMIN_PASSWORD=secret\n";
         assert_eq!(env_string(contents, "SERVER_NAME").unwrap(), "Pal Server");
-        assert!(!env_bool(contents, "IS_PVP").unwrap());
+        assert_eq!(env_string(contents, "IS_PVP").unwrap(), "false");
     }
 
     #[test]
     fn rejects_non_finite_world_rates() {
-        let settings = WorldSettingsInput {
-            server_name: "Pal Server".into(),
-            server_description: String::new(),
-            server_password: String::new(),
-            max_players: 8,
-            exp_rate: f64::NAN,
-            capture_rate: 1.0,
-            spawn_rate: 1.0,
-            work_speed_rate: 1.0,
-            egg_hatching_time: 1.0,
-            death_penalty: "Item".into(),
-            pvp: false,
-            friendly_fire: false,
-            fast_travel: true,
-            allow_client_mod: true,
-        };
+        let mut values = WORLD_SETTING_DEFAULTS
+            .iter()
+            .map(|(key, value)| ((*key).to_string(), (*value).to_string()))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        values.insert("EXP_RATE".into(), "NaN".into());
+        let settings = WorldSettingsInput { values };
         assert!(validate_world_settings(&settings).is_err());
+    }
+
+    #[test]
+    fn world_setting_defaults_match_public_templates() {
+        let values = WORLD_SETTING_DEFAULTS
+            .iter()
+            .map(|(key, value)| ((*key).to_string(), (*value).to_string()))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let validation = validate_world_settings(&WorldSettingsInput { values });
+        assert!(validation.is_ok(), "{validation:?}");
+        for (key, _) in WORLD_SETTING_DEFAULTS {
+            assert!(
+                ENV_TEMPLATE
+                    .lines()
+                    .any(|line| line.starts_with(&format!("{key}="))),
+                ".env.example is missing {key}"
+            );
+            assert!(
+                COMPOSE_TEMPLATE.contains(&format!("      {key}:")),
+                "compose.yaml is missing {key}"
+            );
+        }
+    }
+
+    #[test]
+    fn validates_broadcast_messages_by_character_count() {
+        assert!(validate_player_message(&"帕".repeat(512)).is_ok());
+        assert!(validate_player_message(&"帕".repeat(513)).is_err());
+        assert!(validate_player_message("line one\nline two").is_err());
     }
 
     #[cfg(unix)]
     #[test]
     fn server_snapshot_command_has_valid_shell_syntax() {
-        let status = std::process::Command::new("sh")
-            .args(["-n", "-c", &server_snapshot_script()])
-            .status()
-            .unwrap();
-        assert!(status.success());
+        for script in [
+            server_snapshot_script(),
+            save_world_script(),
+            upgrade_compose_script(),
+        ] {
+            let status = std::process::Command::new("sh")
+                .args(["-n", "-c", &script])
+                .status()
+                .unwrap();
+            assert!(status.success());
+        }
+    }
+
+    #[test]
+    fn save_world_preserves_rest_cli_failures() {
+        let script = save_world_script();
+        assert!(script.contains("save_exit=$?"));
+        assert!(script.contains("exit \"$save_exit\""));
+        assert!(script.contains("PALDECK_SAVE_VERIFIED=%s"));
     }
 }

@@ -23,8 +23,12 @@ Paldeck 是一个面向 Palworld 独立服务器的开源部署方案与桌面�
 - 默认将部署文件保存到远程账号的 `~/.palworld`
 - 默认仅将 Palworld REST API 绑定至服务器回环地址
 - 读取真实容器 CPU/内存、Palworld FPS、运行时间、世界天数和在线玩家
-- 定时读取真实 Compose 日志、创建和列出备份，并编辑经过验证的世界配置
+- 定时读取真实 Compose 日志、创建和列出备份，并编辑当前固定容器版本支持的
+  79 项白名单世界配置
 - 通过容器 REST 客户端广播消息，以及踢出或封禁在线玩家
+- 手动保存世界时立即显示进度、保留 REST 失败结果，并根据远程存档文件时间确认
+  成功请求是否真正落盘
+- 安全写入世界配置后，可选择立即重建容器应用，或留到稍后重启时应用
 
 ## 项目结构
 
@@ -157,6 +161,10 @@ Tauri 不保证完整的 portable 模式。开发包均没有受信任的 Develo
 - Compose 操作会显式指定受管目录、`.env` 和 `compose.yaml`；每次管理操作前
   都会核对已记录的 Compose 摘要和 `PALWORLD_DATA_DIR` 的最终路径边界。
 - `.env` 更新会先写入临时文件，验证 Compose 配置后再原子替换。
+- 保存世界配置时会通过可回滚事务升级未被修改过的旧版 Paldeck Compose 模板，
+  验证成功后将旧模板保留为 `compose.yaml.paldeck.bak`。
+- 保存配置不会静默中断服务器。Paldeck 会询问是立即重新创建容器，还是保留已经
+  验证的 `.env` 改动并在稍后重启时应用。
 - 不建议将 Palworld REST API 直接暴露到公网。
 
 安全问题请不要创建公开 Issue，参见 [SECURITY.md](SECURITY.md)。

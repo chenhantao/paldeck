@@ -6,6 +6,7 @@ import {
   Cpu,
   Database,
   FileTerminal,
+  LoaderCircle,
   MemoryStick,
   MoreHorizontal,
   Play,
@@ -16,7 +17,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MetricCard } from "../components/ui/MetricCard";
 import { StatusPill } from "../components/ui/StatusPill";
 import { formatBytes, formatDateTime, formatTime, formatUptime } from "../lib/format";
@@ -49,21 +50,52 @@ export function DashboardPage({
   const [players, setPlayers] = useState<Player[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [backups, setBackups] = useState<Backup[]>([]);
+  const loadingPlayers = useRef(false);
+  const lastPlayersError = useRef<string | null>(null);
   const { t, locale, errorMessage } = useI18n();
+
+  const loadPlayers = useCallback(async () => {
+    if (loadingPlayers.current) return;
+    loadingPlayers.current = true;
+    try {
+      setPlayers(await fetchOnlinePlayers(profile));
+      lastPlayersError.current = null;
+    } catch (error) {
+      const message = errorMessage(error);
+      if (lastPlayersError.current !== message) onNotice(message);
+      lastPlayersError.current = message;
+    } finally {
+      loadingPlayers.current = false;
+    }
+  }, [profile, onNotice, errorMessage]);
 
   useEffect(() => {
     void fetchBackups(profile).then(setBackups).catch(() => setBackups([]));
+  }, [profile]);
+
+  useEffect(() => {
     if (snapshot.status !== "online") {
       setPlayers([]);
+      return;
+    }
+    void loadPlayers();
+    const timer = window.setInterval(() => void loadPlayers(), 10_000);
+    const refreshOnFocus = () => void loadPlayers();
+    window.addEventListener("focus", refreshOnFocus);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshOnFocus);
+    };
+  }, [snapshot.status, loadPlayers]);
+
+  useEffect(() => {
+    if (snapshot.status !== "online") {
       setLogs([]);
       return;
     }
-    void Promise.allSettled([
-      fetchOnlinePlayers(profile).then(setPlayers),
-      fetchRemoteLogs(profile, 80).then((result) => {
-        if (result.success) setLogs(parseRemoteLogs(result.stdout));
-      }),
-    ]);
+    void fetchRemoteLogs(profile, 80).then((result) => {
+      if (result.success) setLogs(parseRemoteLogs(result.stdout));
+    });
   }, [profile, snapshot.status]);
 
   const performAction = async (
@@ -101,11 +133,8 @@ export function DashboardPage({
             onClick={() => performAction("save", onSaveWorld)}
             disabled={busyAction !== null || snapshot.status !== "online"}
           >
-            <Save
-              size={17}
-              className={busyAction === "save" ? "spin" : undefined}
-            />
-            {t("保存世界")}
+            {busyAction === "save" ? <LoaderCircle size={17} className="spin" /> : <Save size={17} />}
+            {t(busyAction === "save" ? "正在保存世界…" : "保存世界")}
           </button>
         </div>
       </header>

@@ -3,6 +3,7 @@ interface ToggleProps {
   onChange: (checked: boolean) => void;
   label: string;
   description?: string;
+  disabled?: boolean;
 }
 
 export function Toggle({
@@ -10,9 +11,10 @@ export function Toggle({
   onChange,
   label,
   description,
+  disabled = false,
 }: ToggleProps) {
   return (
-    <label className="toggle-row">
+    <label className={`toggle-row${disabled ? " toggle-row--disabled" : ""}`}>
       <span>
         <strong>{label}</strong>
         {description && <small>{description}</small>}
@@ -21,6 +23,7 @@ export function Toggle({
         className="toggle-row__input"
         type="checkbox"
         checked={checked}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}
       />
       <span className="toggle-row__control" aria-hidden="true">

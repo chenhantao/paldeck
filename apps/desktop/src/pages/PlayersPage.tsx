@@ -6,7 +6,8 @@ import {
   UserMinus,
   Users,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { BroadcastDialog } from "../components/BroadcastDialog";
 import { fetchOnlinePlayers, runPlayerAction } from "../lib/backend";
 import type { Player, ServerProfile } from "../types/server";
 import { useI18n } from "../i18n/I18nContext";
@@ -22,20 +23,38 @@ export function PlayersPage({
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
+  const [broadcastSending, setBroadcastSending] = useState(false);
+  const [broadcastError, setBroadcastError] = useState<string | null>(null);
+  const loadingPlayers = useRef(false);
+  const lastLoadError = useRef<string | null>(null);
   const { t, errorMessage } = useI18n();
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (showLoading = false) => {
+    if (loadingPlayers.current) return;
+    loadingPlayers.current = true;
+    if (showLoading) setLoading(true);
     try {
       setPlayers(await fetchOnlinePlayers(profile));
+      lastLoadError.current = null;
     } catch (error) {
-      onNotice(errorMessage(error));
+      const message = errorMessage(error);
+      if (lastLoadError.current !== message) onNotice(message);
+      lastLoadError.current = message;
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
+      loadingPlayers.current = false;
     }
   }, [profile, onNotice, errorMessage]);
 
   useEffect(() => {
-    void load();
+    void load(true);
+    const timer = window.setInterval(() => void load(), 10_000);
+    const refreshOnFocus = () => void load();
+    window.addEventListener("focus", refreshOnFocus);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshOnFocus);
+    };
   }, [load]);
 
   const filteredPlayers = players.filter((player) =>
@@ -57,15 +76,18 @@ export function PlayersPage({
     }
   };
 
-  const announce = async () => {
-    const message = window.prompt(t("输入广播消息"));
-    if (!message?.trim()) return;
+  const announce = async (message: string) => {
+    setBroadcastSending(true);
+    setBroadcastError(null);
     try {
-      const result = await runPlayerAction(profile, "announce", null, message.trim());
+      const result = await runPlayerAction(profile, "announce", null, message);
       if (!result.success) throw new Error(result.stderr || t("广播发送失败"));
+      setBroadcastOpen(false);
       onNotice(t("广播已发送"));
     } catch (error) {
-      onNotice(errorMessage(error));
+      setBroadcastError(errorMessage(error));
+    } finally {
+      setBroadcastSending(false);
     }
   };
 
@@ -77,7 +99,13 @@ export function PlayersPage({
           <h1>{t("玩家")}</h1>
           <p>{t("查看在线状态，并通过 Palworld REST API 管理当前玩家。")}</p>
         </div>
-        <button className="button button--primary" onClick={() => void announce()}>
+        <button
+          className="button button--primary"
+          onClick={() => {
+            setBroadcastError(null);
+            setBroadcastOpen(true);
+          }}
+        >
           <MessageSquareText size={17} />
           {t("广播消息")}
         </button>
@@ -142,6 +170,16 @@ export function PlayersPage({
           {!loading && filteredPlayers.length === 0 && <div className="empty-state">{t("当前没有在线玩家")}</div>}
         </div>
       </section>
+
+      <BroadcastDialog
+        open={broadcastOpen}
+        sending={broadcastSending}
+        error={broadcastError}
+        onClose={() => {
+          if (!broadcastSending) setBroadcastOpen(false);
+        }}
+        onSend={announce}
+      />
     </div>
   );
 }

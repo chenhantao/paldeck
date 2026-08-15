@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Deserialize)]
@@ -165,37 +167,11 @@ pub struct BackupEntry {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldSettingsInput {
-    pub server_name: String,
-    pub server_description: String,
-    pub server_password: String,
-    pub max_players: u8,
-    pub exp_rate: f64,
-    pub capture_rate: f64,
-    pub spawn_rate: f64,
-    pub work_speed_rate: f64,
-    pub egg_hatching_time: f64,
-    pub death_penalty: String,
-    pub pvp: bool,
-    pub friendly_fire: bool,
-    pub fast_travel: bool,
-    pub allow_client_mod: bool,
+    pub values: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldSettingsOutput {
-    pub server_name: String,
-    pub server_description: String,
-    pub server_password: String,
-    pub max_players: u8,
-    pub exp_rate: f64,
-    pub capture_rate: f64,
-    pub spawn_rate: f64,
-    pub work_speed_rate: f64,
-    pub egg_hatching_time: f64,
-    pub death_penalty: String,
-    pub pvp: bool,
-    pub friendly_fire: bool,
-    pub fast_travel: bool,
-    pub allow_client_mod: bool,
+    pub values: BTreeMap<String, String>,
 }

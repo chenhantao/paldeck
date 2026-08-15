@@ -106,20 +106,7 @@ export interface LogEntry {
 }
 
 export interface WorldSettings {
-  serverName: string;
-  serverDescription: string;
-  serverPassword: string;
-  maxPlayers: number;
-  expRate: number;
-  captureRate: number;
-  spawnRate: number;
-  workSpeedRate: number;
-  eggHatchingTime: number;
-  deathPenalty: "None" | "Item" | "ItemAndEquipment" | "All";
-  pvp: boolean;
-  friendlyFire: boolean;
-  fastTravel: boolean;
-  allowClientMod: boolean;
+  values: Record<string, string>;
 }
 
 export interface CommandResult {

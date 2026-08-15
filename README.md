@@ -25,8 +25,13 @@ desktop client performs allowlisted management operations over SSH.
 - Store deployment files in `~/.palworld` for the remote account by default
 - Bind the Palworld REST API to the server loopback interface by default
 - Read real container CPU/memory, Palworld FPS, uptime, world-day, and player data
-- Poll real Compose logs, create and list backups, and edit validated world settings
+- Poll real Compose logs, create and list backups, and edit all 79 allowlisted
+  world settings supported by the pinned container version
 - Broadcast messages and kick or ban online players through the container REST client
+- Show immediate progress for manual world saves, preserve REST failures, and verify successful
+  requests against the remote save-file timestamp
+- After safely writing world settings, choose whether to recreate the container immediately or
+  apply the changes during a later restart
 
 ## Repository layout
 
@@ -188,6 +193,12 @@ notarized; the Windows and Linux packages remain unsigned.
   Compose digest and the resolved `PALWORLD_DATA_DIR` boundary.
 - `.env` updates are written to a temporary file, validated through Compose,
   and then replaced atomically.
+- Saving world settings upgrades an untouched older Paldeck Compose template
+  through a validated rollback-capable transaction and retains the previous
+  template as `compose.yaml.paldeck.bak`.
+- Saving settings does not silently interrupt the server. Paldeck asks whether
+  to recreate the container immediately or leave the validated `.env` changes
+  pending until a later restart.
 - Do not expose the Palworld REST API directly to the public internet.
 
 Do not report security issues through a public issue. See
