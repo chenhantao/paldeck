@@ -4,8 +4,9 @@ use base64::prelude::{Engine as _, BASE64_STANDARD};
 use serde_json::Value;
 
 use crate::models::{
-    BackupEntry, CommandResult, ConnectionProbe, EnvironmentInspection, InitializationOptions,
-    OnlinePlayer, ServerProfile, ServerSnapshot, WorldSettingsInput, WorldSettingsOutput,
+    BackupEntry, BackupSettings, CommandResult, ConnectionProbe, EnvironmentInspection,
+    InitializationOptions, OnlinePlayer, ServerProfile, ServerSnapshot, WorldSettingsInput,
+    WorldSettingsOutput,
 };
 use crate::remote::{
     compose_template_hash, data_directory_check, data_directory_guard, in_compose_directory,
@@ -585,7 +586,8 @@ pub async fn list_backups(profile: ServerProfile) -> Result<Vec<BackupEntry>, St
          if [ ! -d \"$backup_dir\" ] || [ -L \"$backup_dir\" ]; then \
            printf '备份目录不是安全的普通目录。\\n' >&2; exit 74; fi; \
          find \"$backup_dir\" -maxdepth 1 -type f ! -lname '*' \
-           -printf '%T@\\t%s\\t%f\\n' | sort -nr | head -n 100"
+           -name 'palworld-save-*.tar.gz' -printf '%T@\\t%s\\t%f\\n' \
+           | sort -nr | head -n 100"
     );
     let command = in_compose_directory(&profile, &script)?;
     let result = run_remote(&profile, &command).await?;
@@ -620,6 +622,228 @@ pub async fn list_backups(profile: ServerProfile) -> Result<Vec<BackupEntry>, St
 }
 
 #[tauri::command]
+pub async fn read_backup_settings(profile: ServerProfile) -> Result<BackupSettings, String> {
+    let result = read_env(profile).await?;
+    if !result.success {
+        return Err(command_error(&result, "无法读取备份配置"));
+    }
+    Ok(BackupSettings {
+        enabled: env_bool_or_default(&result.stdout, "BACKUP_ENABLED", true)?,
+        cron_expression: env_string_optional(&result.stdout, "BACKUP_CRON_EXPRESSION")
+            .unwrap_or_else(|| "0 3 * * *".to_string()),
+        delete_old_backups: env_bool_or_default(&result.stdout, "DELETE_OLD_BACKUPS", true)?,
+        retention_days: env_parse_or_default(&result.stdout, "OLD_BACKUP_DAYS", 30_u16)?,
+    })
+}
+
+#[tauri::command]
+pub async fn write_backup_settings(
+    profile: ServerProfile,
+    settings: BackupSettings,
+) -> Result<CommandResult, String> {
+    validate_backup_settings(&settings)?;
+    let current = read_env(profile.clone()).await?;
+    if !current.success {
+        return Err(command_error(&current, "无法读取现有备份配置"));
+    }
+    let mut contents = current.stdout;
+    for (key, value) in [
+        ("BACKUP_ENABLED", settings.enabled.to_string()),
+        (
+            "BACKUP_CRON_EXPRESSION",
+            dotenv_quote(&settings.cron_expression),
+        ),
+        (
+            "DELETE_OLD_BACKUPS",
+            settings.delete_old_backups.to_string(),
+        ),
+        ("OLD_BACKUP_DAYS", settings.retention_days.to_string()),
+    ] {
+        upsert_env_value(&mut contents, key, &value);
+    }
+    write_env(profile, contents).await
+}
+
+fn validate_backup_settings(settings: &BackupSettings) -> Result<(), String> {
+    let cron = settings.cron_expression.as_str();
+    if cron.trim() != cron || cron.len() > 128 {
+        return Err("自动备份 Cron 表达式格式无效".into());
+    }
+    let fields = cron.split_whitespace().collect::<Vec<_>>();
+    if fields.len() != 5
+        || fields.iter().any(|field| {
+            field.is_empty()
+                || !field.chars().all(|character| {
+                    character.is_ascii_digit() || matches!(character, '*' | ',' | '-' | '/')
+                })
+        })
+    {
+        return Err("自动备份 Cron 表达式必须包含 5 个有效字段".into());
+    }
+    if !(1..=3650).contains(&settings.retention_days) {
+        return Err("备份保留天数必须在 1 到 3650 之间".into());
+    }
+    Ok(())
+}
+
+fn validate_backup_filename(filename: &str) -> Result<(), String> {
+    if filename.len() > 255
+        || !filename.starts_with("palworld-save-")
+        || !filename.ends_with(".tar.gz")
+        || !filename
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || "._-".contains(character))
+    {
+        return Err("备份文件名无效".into());
+    }
+    Ok(())
+}
+
+fn backup_directory_check() -> String {
+    let data_guard = data_directory_guard("./.env");
+    format!(
+        "{data_guard}; backup_dir=\"$paldeck_data_path/backups\"; \
+         if [ ! -d \"$backup_dir\" ] || [ -L \"$backup_dir\" ]; then \
+           printf '备份目录不存在或不是安全的普通目录。\\n' >&2; exit 74; fi"
+    )
+}
+
+#[tauri::command]
+pub async fn create_backup(profile: ServerProfile) -> Result<CommandResult, String> {
+    let script = create_backup_script();
+    let command = in_compose_directory(&profile, &script)?;
+    run_remote_with_timeout(&profile, &command, Duration::from_secs(15 * 60)).await
+}
+
+fn create_backup_script() -> String {
+    let data_guard = data_directory_guard("./.env");
+    let script = format!(
+        "{data_guard}; backup_dir=\"$paldeck_data_path/backups\"; \
+         if [ -e \"$backup_dir\" ] && {{ [ ! -d \"$backup_dir\" ] || [ -L \"$backup_dir\" ]; }}; then \
+           printf '备份目录不是安全的普通目录。\\n' >&2; exit 74; fi; \
+         before=\"$(find \"$backup_dir\" -maxdepth 1 -type f -name 'palworld-save-*.tar.gz' \
+           -printf '%T@ %f\\n' 2>/dev/null | sort -nr | head -n 1 || true)\"; \
+         {COMPOSE_COMMAND} exec -T palworld backup; \
+         if [ ! -d \"$backup_dir\" ] || [ -L \"$backup_dir\" ]; then \
+           printf '备份命令完成，但没有生成安全的备份目录。\\n' >&2; exit 75; fi; \
+         after=\"$(find \"$backup_dir\" -maxdepth 1 -type f -name 'palworld-save-*.tar.gz' \
+           -printf '%T@ %f\\n' | sort -nr | head -n 1)\"; \
+         if [ -z \"$after\" ] || [ \"$after\" = \"$before\" ]; then \
+           printf '备份命令完成，但未检测到新的备份归档。\\n' >&2; exit 75; fi; \
+         printf 'PALDECK_BACKUP_CREATED=%s\\n' \"${{after#* }}\""
+    );
+    script
+}
+
+#[tauri::command]
+pub async fn delete_backup(
+    profile: ServerProfile,
+    filename: String,
+) -> Result<CommandResult, String> {
+    validate_backup_filename(&filename)?;
+    let guard = backup_directory_check();
+    let script = format!(
+        "{guard}; backup_file=\"$backup_dir\"/{filename}; \
+         if [ ! -f \"$backup_file\" ] || [ -L \"$backup_file\" ]; then \
+           printf '指定备份不存在或不是安全的普通文件。\\n' >&2; exit 74; fi; \
+         rm -f -- \"$backup_file\"",
+        filename = shell_quote(&filename),
+    );
+    let command = in_compose_directory(&profile, &script)?;
+    run_remote(&profile, &command).await
+}
+
+#[tauri::command]
+pub async fn restore_backup(
+    profile: ServerProfile,
+    filename: String,
+) -> Result<CommandResult, String> {
+    validate_backup_filename(&filename)?;
+    let script = restore_backup_script(&filename);
+    let command = in_compose_directory(&profile, &script)?;
+    run_remote_with_timeout(&profile, &command, Duration::from_secs(30 * 60)).await
+}
+
+fn restore_backup_script(filename: &str) -> String {
+    let guard = backup_directory_check();
+    format!(
+        "{guard}; \
+         archive=\"$backup_dir\"/{filename}; \
+         if [ ! -f \"$archive\" ] || [ -L \"$archive\" ]; then \
+           printf '指定备份不存在或不是安全的普通文件。\\n' >&2; exit 74; fi; \
+         restore_parent=\"$paldeck_data_path/Pal\"; current_saved=\"$restore_parent/Saved\"; \
+         if [ ! -d \"$restore_parent\" ] || [ -L \"$restore_parent\" ]; then \
+           printf 'Palworld 数据目录不存在或不安全。\\n' >&2; exit 74; fi; \
+         restore_tmp=\"$(mktemp -d -p \"$backup_dir\" .paldeck-restore.XXXXXX)\"; \
+         list_file=\"$restore_tmp/.entries\"; type_file=\"$restore_tmp/.types\"; \
+         rollback_dir=\"$(mktemp -d -p \"$backup_dir\" .paldeck-rollback.XXXXXX)\"; \
+         was_running=0; swapped=0; had_current=0; restore_ok=0; \
+         rollback_restore() {{ \
+           status=$?; trap - EXIT HUP INT TERM; \
+           if [ \"$restore_ok\" != 1 ] && [ \"$swapped\" = 1 ]; then \
+             rm -rf -- \"$current_saved\"; \
+             if [ \"$had_current\" = 1 ] && [ -d \"$rollback_dir/Saved\" ]; then \
+               mv -- \"$rollback_dir/Saved\" \"$current_saved\"; \
+             fi; \
+           fi; \
+           if [ \"$restore_ok\" != 1 ] && [ \"$was_running\" = 1 ]; then \
+             {COMPOSE_COMMAND} up -d palworld >/dev/null 2>&1 || true; \
+           fi; \
+           rm -rf -- \"$restore_tmp\" \"$rollback_dir\"; \
+           exit \"$status\"; \
+         }}; \
+         trap rollback_restore EXIT HUP INT TERM; \
+         tar -tzf \"$archive\" > \"$list_file\"; \
+         tar -tvzf \"$archive\" > \"$type_file\"; \
+         if [ ! -s \"$list_file\" ]; then printf '备份归档为空。\\n' >&2; exit 74; fi; \
+         while IFS= read -r entry; do \
+           case \"$entry\" in Saved|Saved/*) ;; *) printf '备份包含 Saved 目录之外的条目。\\n' >&2; exit 74 ;; esac; \
+           case \"$entry\" in /*|../*|*/../*|*/..|./*|*/./*|*/.|*//*) \
+             printf '备份包含不安全路径。\\n' >&2; exit 74 ;; esac; \
+         done < \"$list_file\"; \
+         while IFS= read -r entry; do \
+           entry_type=\"${{entry%${{entry#?}}}}\"; \
+           case \"$entry_type\" in -|d) ;; *) printf '备份包含不支持的链接或特殊文件。\\n' >&2; exit 74 ;; esac; \
+         done < \"$type_file\"; \
+         tar -xzf \"$archive\" -C \"$restore_tmp\" --no-same-owner --no-same-permissions; \
+         rm -f -- \"$list_file\" \"$type_file\"; \
+         if [ ! -d \"$restore_tmp/Saved\" ] || [ -L \"$restore_tmp/Saved\" ] || \
+            [ -n \"$(find \"$restore_tmp/Saved\" ! -type f ! -type d -print -quit)\" ]; then \
+           printf '解压后的备份结构不安全。\\n' >&2; exit 74; fi; \
+         if [ -n \"$({COMPOSE_COMMAND} ps --status running -q palworld)\" ]; then was_running=1; fi; \
+         if [ \"$was_running\" = 1 ]; then {COMPOSE_COMMAND} stop -t 120 palworld; fi; \
+         if [ -n \"$({COMPOSE_COMMAND} ps --status running -q palworld)\" ]; then \
+           printf '无法停止 Palworld 容器，已取消恢复。\\n' >&2; exit 75; fi; \
+         if [ -e \"$current_saved\" ]; then \
+           if [ ! -d \"$current_saved\" ] || [ -L \"$current_saved\" ]; then \
+             printf '当前 Saved 路径不安全。\\n' >&2; exit 74; fi; \
+           mv -- \"$current_saved\" \"$rollback_dir/Saved\"; had_current=1; \
+         fi; \
+         mv -- \"$restore_tmp/Saved\" \"$current_saved\"; swapped=1; \
+         if [ \"$had_current\" = 1 ]; then \
+           safety_path=\"$(mktemp -p \"$backup_dir\" \
+             \"palworld-save-$(date +'%Y-%m-%d_%H-%M-%S')-pre-restore.XXXXXX.tar.gz\")\"; \
+           safety_name=\"${{safety_path##*/}}\"; \
+           tar -zcf \"$safety_path\" -C \"$rollback_dir\" Saved; \
+           tar -tzf \"$safety_path\" >/dev/null; \
+         else safety_name=''; fi; \
+         if [ \"$was_running\" = 1 ]; then \
+           {COMPOSE_COMMAND} up -d palworld; attempts=0; \
+           while [ -z \"$({COMPOSE_COMMAND} ps --status running -q palworld)\" ] && [ \"$attempts\" -lt 30 ]; do \
+             sleep 1; attempts=$((attempts + 1)); \
+           done; \
+           if [ -z \"$({COMPOSE_COMMAND} ps --status running -q palworld)\" ]; then \
+             printf '恢复后容器未能进入运行状态，正在回滚。\\n' >&2; exit 75; fi; \
+         fi; \
+         restore_ok=1; trap - EXIT HUP INT TERM; \
+         rm -rf -- \"$restore_tmp\" \"$rollback_dir\"; \
+         printf 'PALDECK_RESTORE_COMPLETED=1\\nPALDECK_RESTARTED=%s\\nPALDECK_SAFETY_BACKUP=%s\\n' \
+           \"$was_running\" \"$safety_name\"",
+        filename = shell_quote(filename),
+    )
+}
+
+#[tauri::command]
 pub async fn compose_action(
     profile: ServerProfile,
     action: String,
@@ -648,7 +872,6 @@ pub async fn server_action(
 ) -> Result<CommandResult, String> {
     let container_command = match action.as_str() {
         "save" => save_world_script(),
-        "backup" => format!("{COMPOSE_COMMAND} exec -T palworld backup"),
         _ => return Err("不支持的服务器操作".into()),
     };
 
@@ -946,6 +1169,29 @@ fn env_string_optional(contents: &str, key: &str) -> Option<String> {
     env_string(contents, key).ok()
 }
 
+fn env_bool_or_default(contents: &str, key: &str, default: bool) -> Result<bool, String> {
+    let Some(value) = env_string_optional(contents, key) else {
+        return Ok(default);
+    };
+    match value.to_ascii_lowercase().as_str() {
+        "true" | "1" => Ok(true),
+        "false" | "0" => Ok(false),
+        _ => Err(format!("环境配置变量 {key} 的布尔值无效")),
+    }
+}
+
+fn env_parse_or_default<T>(contents: &str, key: &str, default: T) -> Result<T, String>
+where
+    T: std::str::FromStr,
+{
+    let Some(value) = env_string_optional(contents, key) else {
+        return Ok(default);
+    };
+    value
+        .parse()
+        .map_err(|_| format!("环境配置变量 {key} 的值无效"))
+}
+
 fn command_error(result: &CommandResult, fallback: &str) -> String {
     if result.stderr.trim().is_empty() {
         fallback.to_string()
@@ -1098,12 +1344,13 @@ fn upsert_env_value(contents: &mut String, key: &str, value: &str) {
 #[cfg(test)]
 mod tests {
     use super::{
-        dotenv_quote, env_string, inspection_flag, inspection_value, parse_memory_usage,
-        save_world_script, server_snapshot_script, set_env_value, upgrade_compose_script,
+        create_backup_script, dotenv_quote, env_string, inspection_flag, inspection_value,
+        parse_memory_usage, restore_backup_script, save_world_script, server_snapshot_script,
+        set_env_value, upgrade_compose_script, validate_backup_filename, validate_backup_settings,
         validate_data_directory, validate_player_message, validate_world_settings,
         COMPOSE_TEMPLATE, ENV_TEMPLATE, WORLD_SETTING_DEFAULTS,
     };
-    use crate::models::WorldSettingsInput;
+    use crate::models::{BackupSettings, WorldSettingsInput};
 
     #[test]
     fn parses_environment_inspection() {
@@ -1207,6 +1454,26 @@ mod tests {
         assert!(validate_player_message("line one\nline two").is_err());
     }
 
+    #[test]
+    fn validates_backup_policy_and_filenames() {
+        let valid = BackupSettings {
+            enabled: true,
+            cron_expression: "0 3 * * *".into(),
+            delete_old_backups: true,
+            retention_days: 30,
+        };
+        assert!(validate_backup_settings(&valid).is_ok());
+        assert!(validate_backup_filename("palworld-save-2026-08-16_03-00-00.tar.gz").is_ok());
+        assert!(validate_backup_filename("../../save.tar.gz").is_err());
+
+        let mut invalid = valid.clone();
+        invalid.cron_expression = "@daily".into();
+        assert!(validate_backup_settings(&invalid).is_err());
+        invalid.cron_expression = "0 3 * * *".into();
+        invalid.retention_days = 0;
+        assert!(validate_backup_settings(&invalid).is_err());
+    }
+
     #[cfg(unix)]
     #[test]
     fn server_snapshot_command_has_valid_shell_syntax() {
@@ -1214,6 +1481,8 @@ mod tests {
             server_snapshot_script(),
             save_world_script(),
             upgrade_compose_script(),
+            create_backup_script(),
+            restore_backup_script("palworld-save-2026-08-16_03-00-00.tar.gz"),
         ] {
             let status = std::process::Command::new("sh")
                 .args(["-n", "-c", &script])
@@ -1221,6 +1490,15 @@ mod tests {
                 .unwrap();
             assert!(status.success());
         }
+    }
+
+    #[test]
+    fn restore_backup_stops_restarts_and_keeps_a_safety_archive() {
+        let script = restore_backup_script("palworld-save-2026-08-16_03-00-00.tar.gz");
+        assert!(script.contains("stop -t 120 palworld"));
+        assert!(script.contains("up -d palworld"));
+        assert!(script.contains("pre-restore.XXXXXX.tar.gz"));
+        assert!(script.contains("PALDECK_RESTORE_COMPLETED=1"));
     }
 
     #[test]

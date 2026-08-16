@@ -8,6 +8,13 @@ interface ApplySettingsDialogProps {
   error: string | null;
   onLater: () => void;
   onApply: () => void | Promise<void>;
+  eyebrow?: string;
+  title?: string;
+  savedTitle?: string;
+  description?: string;
+  laterLabel?: string;
+  applyLabel?: string;
+  applyingLabel?: string;
 }
 
 export function ApplySettingsDialog({
@@ -16,6 +23,13 @@ export function ApplySettingsDialog({
   error,
   onLater,
   onApply,
+  eyebrow = "APPLY WORLD SETTINGS",
+  title = "应用世界配置",
+  savedTitle = "配置已安全写入远程服务器",
+  description = "需要重新创建容器才能让新配置生效；游戏存档不会被删除。",
+  laterLabel = "稍后应用",
+  applyLabel = "立即应用",
+  applyingLabel = "正在应用…",
 }: ApplySettingsDialogProps) {
   const { t } = useI18n();
 
@@ -47,8 +61,8 @@ export function ApplySettingsDialog({
       >
         <header className="dialog__header">
           <div>
-            <span className="eyebrow">APPLY WORLD SETTINGS</span>
-            <h2 id="apply-settings-title">{t("应用世界配置")}</h2>
+            <span className="eyebrow">{eyebrow}</span>
+            <h2 id="apply-settings-title">{t(title)}</h2>
           </div>
           <button
             type="button"
@@ -67,8 +81,8 @@ export function ApplySettingsDialog({
               <ServerCog size={20} />
             </div>
             <div>
-              <strong>{t("配置已安全写入远程服务器")}</strong>
-              <p>{t("需要重新创建容器才能让新配置生效；游戏存档不会被删除。")}</p>
+              <strong>{t(savedTitle)}</strong>
+              <p>{t(description)}</p>
             </div>
           </div>
         </div>
@@ -82,7 +96,7 @@ export function ApplySettingsDialog({
             onClick={onLater}
             disabled={applying}
           >
-            {t("稍后应用")}
+            {t(laterLabel)}
           </button>
           <button
             type="button"
@@ -91,7 +105,7 @@ export function ApplySettingsDialog({
             disabled={applying}
           >
             {applying ? <LoaderCircle size={17} className="spin" /> : <RefreshCw size={17} />}
-            {t(applying ? "正在应用…" : "立即应用")}
+            {t(applying ? applyingLabel : applyLabel)}
           </button>
         </footer>
       </section>

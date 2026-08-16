@@ -164,6 +164,15 @@ pub struct BackupEntry {
     pub size_bytes: u64,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupSettings {
+    pub enabled: bool,
+    pub cron_expression: String,
+    pub delete_old_backups: bool,
+    pub retention_days: u16,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorldSettingsInput {

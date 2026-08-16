@@ -9,7 +9,7 @@ desktop client performs allowlisted management operations over SSH.
 > [!IMPORTANT]
 > Paldeck is still in early development. Its desktop pages now use the real
 > remote Compose, Docker, Palworld REST API, log, backup, and `.env` data.
-> Backup download/restore and historical player statistics are not yet
+> Backup download and historical player statistics are not yet
 > available and are not presented as working controls.
 
 ## Features
@@ -17,6 +17,7 @@ desktop client performs allowlisted management operations over SSH.
 - Deploy a Palworld dedicated server with Docker Compose
 - Configure common server, network, backup, and world options through `.env`
 - Manage servers from a cross-platform Tauri 2, React, and Rust desktop client
+- Save multiple server profiles and add, switch, edit, or locally remove them (Beta)
 - Use the desktop interface in English or Simplified Chinese, or follow the system language
 - Inspect Linux, amd64, Docker, and Compose during first-time setup
 - Connect as an explicit `username@host` with the system OpenSSH configuration and keys, or use username-and-password login
@@ -25,8 +26,9 @@ desktop client performs allowlisted management operations over SSH.
 - Store deployment files in `~/.palworld` for the remote account by default
 - Bind the Palworld REST API to the server loopback interface by default
 - Read real container CPU/memory, Palworld FPS, uptime, world-day, and player data
-- Poll real Compose logs, create and list backups, and edit all 79 allowlisted
-  world settings supported by the pinned container version
+- Poll real Compose logs; configure automatic backup schedules and retention (Beta);
+  create, verify, list, delete, and transactionally restore backups; and edit
+  all 79 allowlisted world settings supported by the pinned container version
 - Broadcast messages and kick or ban online players through the container REST client
 - Show immediate progress for manual world saves, preserve REST failures, and verify successful
   requests against the remote save-file timestamp
@@ -119,6 +121,15 @@ only in the current application session and is never written to browser
 storage or local configuration. The public server host key and other
 non-sensitive connection details may be persisted.
 
+The server selector in the sidebar manages multiple saved connections. An
+existing single-server profile is migrated automatically. Removing a profile
+deletes only its local, non-secret connection record: it never stops the
+server or removes the remote deployment, saves, or backups. Removing the last
+profile returns to the setup wizard. Multi-server profile management and the
+backup policy/delete/restore controls are currently marked **Beta** until they
+receive broader packaged-client and remote-server testing. Keep independent
+connection details and an additional save backup while evaluating them.
+
 Common checks:
 
 ```bash
@@ -199,6 +210,14 @@ notarized; the Windows and Linux packages remain unsigned.
 - Saving settings does not silently interrupt the server. Paldeck asks whether
   to recreate the container immediately or leave the validated `.env` changes
   pending until a later restart.
+- Backup restore validates archive paths and entry types before stopping the
+  service. It moves the current `Saved` directory aside, creates a retained
+  pre-restore safety archive, installs the selected backup, and returns the
+  service to its previous running/stopped state. A failure after the swap
+  restores the previous `Saved` directory and attempts to restart a service
+  that had been running.
+- Backup deletion and restore accept only guarded regular files named
+  `palworld-save-*.tar.gz` inside the configured data directory.
 - Do not expose the Palworld REST API directly to the public internet.
 
 Do not report security issues through a public issue. See

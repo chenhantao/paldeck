@@ -34,6 +34,7 @@ type SetupStep = "connection" | "environment" | "configuration" | "complete";
 interface SetupWizardProps {
   initialProfile?: ServerProfile;
   onComplete: (profile: ServerProfile) => void;
+  onCancel?: () => void;
 }
 
 const defaultOptions: InitializationOptions = {
@@ -48,6 +49,7 @@ const defaultOptions: InitializationOptions = {
 export function SetupWizard({
   initialProfile,
   onComplete,
+  onCancel,
 }: SetupWizardProps) {
   const { t, errorMessage } = useI18n();
   const [step, setStep] = useState<SetupStep>("connection");
@@ -551,6 +553,15 @@ export function SetupWizard({
             {t("登录密码不会写入磁盘")}
           </div>
           <div className="setup-actions">
+            {onCancel && step !== "complete" && (
+              <button
+                className="button button--ghost"
+                onClick={onCancel}
+                disabled={busy}
+              >
+                {t("取消添加")}
+              </button>
+            )}
             {step === "environment" && (
               <button
                 className="button button--ghost"

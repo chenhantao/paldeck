@@ -97,6 +97,13 @@ export interface Backup {
   sizeBytes: number;
 }
 
+export interface BackupSettings {
+  enabled: boolean;
+  cronExpression: string;
+  deleteOldBackups: boolean;
+  retentionDays: number;
+}
+
 export interface LogEntry {
   id: string;
   timestamp: string;

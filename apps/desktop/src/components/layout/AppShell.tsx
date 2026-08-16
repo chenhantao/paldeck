@@ -28,7 +28,7 @@ interface AppShellProps {
   profile: ServerProfile;
   status: ServerStatus;
   playerCount: number | null;
-  onOpenConnection: () => void;
+  onOpenServerManager: () => void;
   children: ReactNode;
 }
 
@@ -50,7 +50,7 @@ export function AppShell({
   profile,
   status,
   playerCount,
-  onOpenConnection,
+  onOpenServerManager,
   children,
 }: AppShellProps) {
   const { t } = useI18n();
@@ -68,7 +68,7 @@ export function AppShell({
           </div>
         </div>
 
-        <button className="server-switcher" onClick={onOpenConnection}>
+        <button className="server-switcher" onClick={onOpenServerManager}>
           <span className="server-switcher__icon">
             <Radio size={17} />
           </span>

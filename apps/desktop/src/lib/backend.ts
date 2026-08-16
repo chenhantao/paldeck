@@ -6,6 +6,7 @@ import type {
   EnvironmentInspection,
   InitializationOptions,
   Backup,
+  BackupSettings,
   Player,
   ServerProfile,
   ServerSnapshot,
@@ -92,7 +93,7 @@ export async function runComposeAction(
 
 export async function runServerAction(
   profile: ServerProfile,
-  action: "save" | "backup",
+  action: "save",
 ): Promise<CommandResult> {
   if (!isDesktopRuntime()) return previewResult;
   return invoke<CommandResult>("server_action", { profile, action });
@@ -177,6 +178,51 @@ export async function runPlayerAction(
 export async function fetchBackups(profile: ServerProfile): Promise<Backup[]> {
   if (!isDesktopRuntime()) return [];
   return invoke<Backup[]>("list_backups", { profile });
+}
+
+export async function fetchBackupSettings(
+  profile: ServerProfile,
+): Promise<BackupSettings> {
+  if (!isDesktopRuntime()) {
+    return {
+      enabled: true,
+      cronExpression: "0 3 * * *",
+      deleteOldBackups: true,
+      retentionDays: 30,
+    };
+  }
+  return invoke<BackupSettings>("read_backup_settings", { profile });
+}
+
+export async function saveBackupSettings(
+  profile: ServerProfile,
+  settings: BackupSettings,
+): Promise<CommandResult> {
+  if (!isDesktopRuntime()) return previewResult;
+  return invoke<CommandResult>("write_backup_settings", { profile, settings });
+}
+
+export async function createRemoteBackup(
+  profile: ServerProfile,
+): Promise<CommandResult> {
+  if (!isDesktopRuntime()) return previewResult;
+  return invoke<CommandResult>("create_backup", { profile });
+}
+
+export async function deleteRemoteBackup(
+  profile: ServerProfile,
+  filename: string,
+): Promise<CommandResult> {
+  if (!isDesktopRuntime()) return previewResult;
+  return invoke<CommandResult>("delete_backup", { profile, filename });
+}
+
+export async function restoreRemoteBackup(
+  profile: ServerProfile,
+  filename: string,
+): Promise<CommandResult> {
+  if (!isDesktopRuntime()) return previewResult;
+  return invoke<CommandResult>("restore_backup", { profile, filename });
 }
 
 export async function fetchWorldSettings(
