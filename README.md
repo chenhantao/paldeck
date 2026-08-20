@@ -17,7 +17,7 @@ desktop client performs allowlisted management operations over SSH.
 - Deploy a Palworld dedicated server with Docker Compose
 - Configure common server, network, backup, and world options through `.env`
 - Manage servers from a cross-platform Tauri 2, React, and Rust desktop client
-- Use Windows-optimized typography and a fluid Windows layout that expands on wide or maximized windows
+- Use a larger cross-platform type scale, plus Windows-optimized fonts and a fluid Windows layout that expands on wide or maximized windows
 - Save multiple server profiles and add, switch, edit, or locally remove them (Beta)
 - Use the desktop interface in English or Simplified Chinese, or follow the system language
 - Inspect Linux, amd64, Docker, and Compose during first-time setup
@@ -46,8 +46,8 @@ desktop client performs allowlisted management operations over SSH.
 ├── compose.yaml                 # Palworld Docker Compose service
 ├── apps/
 │   └── desktop/
-│       ├── src/                 # React + TypeScript frontend
-│       └── src-tauri/           # Tauri/Rust desktop backend
+│       ├── src/                 # React frontend, platform detection, and platform CSS
+│       └── src-tauri/           # Rust backend and per-platform Tauri configuration
 ├── .github/                     # CI, issue, and dependency update configuration
 └── package.json                 # npm workspace entry point
 ```

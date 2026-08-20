@@ -15,7 +15,7 @@ Paldeck 是一个面向 Palworld 独立服务器的开源部署方案与桌面�
 - 使用 Docker Compose 部署 Palworld 独立服务器
 - 通过 `.env` 配置常用服务器、网络、备份和世界参数
 - 提供基于 Tauri 2、React 和 Rust 的跨平台桌面客户端
-- 在 Windows 上使用更清晰易读的系统字体，并让内容面板随宽屏或最大化窗口流式扩展
+- 三平台统一使用更易读的字号；Windows 额外使用优化后的系统字体，并让内容面板随宽屏或最大化窗口流式扩展
 - 保存多个服务器配置，并支持新增、切换、编辑或仅在本地删除（Beta）
 - 桌面界面支持简体中文、English，或自动跟随系统语言
 - 首次使用向导检查 Linux、amd64、Docker 与 Compose 环境
@@ -41,8 +41,8 @@ Paldeck 是一个面向 Palworld 独立服务器的开源部署方案与桌面�
 ├── compose.yaml                 # Palworld Docker Compose 服务
 ├── apps/
 │   └── desktop/
-│       ├── src/                 # React + TypeScript 前端
-│       └── src-tauri/           # Tauri/Rust 桌面后端
+│       ├── src/                 # React 前端、平台检测和平台样式
+│       └── src-tauri/           # Rust 后端和各平台 Tauri 配置
 ├── .github/                     # CI、Issue 与依赖更新配置
 └── package.json                 # npm workspace 入口
 ```

@@ -1,6 +1,7 @@
 :root {
-  font-family:
+  --ui-font-family:
     Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-family: var(--ui-font-family);
   color: #e8f0ed;
   background: #080d0c;
   font-synthesis: none;
@@ -22,6 +23,8 @@
   --violet: #b49bea;
   --danger: #e77b79;
   --sidebar-width: 226px;
+  --page-max-width: 1180px;
+  --page-gutter: 72px;
   --radius-lg: 18px;
   --radius-md: 13px;
   --shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
@@ -114,14 +117,14 @@ select:focus-visible {
 }
 
 .brand strong {
-  font-size: 16px;
+  font-size: 18px;
   letter-spacing: -0.03em;
 }
 
 .brand span {
   margin-top: 2px;
   color: #71817c;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.16em;
 }
@@ -169,14 +172,14 @@ select:focus-visible {
 }
 
 .server-switcher__copy strong {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .server-switcher__copy small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .server-switcher > svg {
@@ -193,7 +196,7 @@ select:focus-visible {
 .sidebar__eyebrow {
   padding: 0 11px 7px;
   color: #5f706b;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -207,7 +210,7 @@ select:focus-visible {
   gap: 11px;
   padding: 10px 11px;
   color: #82908c;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   text-align: left;
   border: 0;
@@ -242,7 +245,7 @@ select:focus-visible {
   margin-left: auto;
   padding: 2px 5px;
   color: #6ed8b2;
-  font-size: 9px;
+  font-size: 12px;
   font-style: normal;
   text-align: center;
   border-radius: 8px;
@@ -262,7 +265,7 @@ select:focus-visible {
   gap: 8px;
   padding: 0 10px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   border: 1px solid var(--border);
   border-radius: 9px;
   background: rgba(255, 255, 255, 0.025);
@@ -277,7 +280,7 @@ select:focus-visible {
   min-width: 0;
   margin-left: auto;
   color: var(--text);
-  font-size: 9px;
+  font-size: 12px;
   border: 0;
   outline: 0;
   background: transparent;
@@ -300,7 +303,7 @@ select:focus-visible {
   align-items: center;
   justify-content: space-between;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .sidebar-version {
@@ -309,7 +312,7 @@ select:focus-visible {
 }
 
 .sidebar-version small {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .sidebar-collapse {
@@ -337,7 +340,7 @@ select:focus-visible {
 }
 
 .page {
-  width: min(1180px, calc(100% - 72px));
+  width: min(var(--page-max-width), calc(100% - var(--page-gutter)));
   margin: 0 auto;
   padding: 42px 0 56px;
 }
@@ -354,7 +357,7 @@ select:focus-visible {
   display: block;
   margin-bottom: 7px;
   color: #5f9e88;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.17em;
 }
@@ -365,7 +368,7 @@ select:focus-visible {
 }
 
 .page-header h1 {
-  font-size: clamp(24px, 2vw, 31px);
+  font-size: clamp(26px, 2.1vw, 34px);
   font-weight: 600;
   letter-spacing: -0.045em;
 }
@@ -373,7 +376,7 @@ select:focus-visible {
 .page-header p {
   margin-top: 7px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .page-header__actions {
@@ -389,7 +392,7 @@ select:focus-visible {
   min-height: 36px;
   gap: 8px;
   padding: 0 14px;
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 600;
   border: 1px solid transparent;
   border-radius: 10px;
@@ -472,7 +475,7 @@ select:focus-visible {
   gap: 6px;
   padding: 4px 8px;
   color: #93e5c7;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 600;
   border: 1px solid rgba(93, 208, 167, 0.16);
   border-radius: 999px;
@@ -677,12 +680,12 @@ select:focus-visible {
   align-items: center;
   gap: 10px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .hero-card__content h2 {
   margin: 16px 0 7px;
-  font-size: 27px;
+  font-size: 30px;
   font-weight: 600;
   letter-spacing: -0.045em;
 }
@@ -690,7 +693,7 @@ select:focus-visible {
 .hero-card__content > p {
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .hero-card__content > p span {
@@ -710,7 +713,7 @@ select:focus-visible {
   align-items: center;
   gap: 7px;
   color: #8f9f9a;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .hero-card__meta svg {
@@ -824,7 +827,7 @@ select:focus-visible {
   align-items: center;
   gap: 8px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .metric-card__icon {
@@ -840,7 +843,7 @@ select:focus-visible {
 .metric-card__value {
   margin-top: 13px;
   color: var(--text);
-  font-size: 21px;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.04em;
 }
@@ -848,7 +851,7 @@ select:focus-visible {
 .metric-card__detail {
   margin-top: 3px;
   color: #72807c;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .spark-bars {
@@ -896,7 +899,7 @@ select:focus-visible {
   align-items: center;
   gap: 4px;
   color: currentColor;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .metric-trend--good {
@@ -935,7 +938,7 @@ select:focus-visible {
 .panel__header h3,
 .settings-card h3 {
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
 }
 
@@ -945,7 +948,7 @@ select:focus-visible {
   gap: 4px;
   padding: 4px;
   color: #72c7a9;
-  font-size: 8px;
+  font-size: 11px;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -975,7 +978,7 @@ select:focus-visible {
   height: 31px;
   place-items: center;
   color: #0d1714;
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 700;
   border-radius: 10px;
   background: linear-gradient(145deg, #8ce2b4, #4ba47d);
@@ -1010,14 +1013,14 @@ select:focus-visible {
 }
 
 .player-row__identity strong {
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 600;
 }
 
 .player-row__identity span {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .ping {
@@ -1027,7 +1030,7 @@ select:focus-visible {
   margin-left: auto;
   color: #70807b;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .ping i {
@@ -1083,7 +1086,7 @@ select:focus-visible {
 
 .activity-row strong {
   overflow: hidden;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1092,7 +1095,7 @@ select:focus-visible {
 .activity-row span {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 7px;
+  font-size: 10px;
 }
 
 .preview-banner {
@@ -1102,7 +1105,7 @@ select:focus-visible {
   margin-top: 14px;
   padding: 10px 13px;
   color: #789187;
-  font-size: 8px;
+  font-size: 11px;
   border: 1px dashed rgba(124, 224, 189, 0.14);
   border-radius: 10px;
   background: rgba(124, 224, 189, 0.025);
@@ -1142,11 +1145,11 @@ select:focus-visible {
 
 .summary-strip span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .summary-strip strong {
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .panel--table {
@@ -1182,7 +1185,7 @@ select:focus-visible {
   min-width: 0;
   flex: 1;
   color: var(--text);
-  font-size: 9px;
+  font-size: 12px;
   border: 0;
   outline: 0;
   background: transparent;
@@ -1205,7 +1208,7 @@ select:focus-visible {
 .data-table__head {
   height: 38px;
   color: #5e6e69;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--border);
@@ -1214,7 +1217,7 @@ select:focus-visible {
 .data-table__row {
   min-height: 64px;
   color: #9daba7;
-  font-size: 9px;
+  font-size: 12px;
   border-bottom: 1px solid rgba(181, 220, 209, 0.065);
 }
 
@@ -1235,7 +1238,7 @@ select:focus-visible {
 
 .table-player strong {
   color: var(--text);
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -1245,7 +1248,7 @@ select:focus-visible {
   overflow: hidden;
   color: #62716d;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 7px;
+  font-size: 10px;
   text-overflow: ellipsis;
 }
 
@@ -1314,7 +1317,7 @@ select:focus-visible {
 .terminal-title {
   color: #879590;
   font-family: "DM Mono", monospace;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .terminal-lights {
@@ -1350,7 +1353,7 @@ select:focus-visible {
   padding: 16px 18px;
   overflow: auto;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.9;
   background:
     radial-gradient(circle at 80% 0, rgba(75, 177, 141, 0.045), transparent 28%),
@@ -1428,7 +1431,7 @@ select:focus-visible {
   gap: 8px;
   padding: 0 10px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   text-align: left;
   border: 0;
   border-radius: 8px;
@@ -1471,7 +1474,7 @@ select:focus-visible {
 .settings-card header p {
   margin: 5px 0 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .form-grid {
@@ -1492,7 +1495,7 @@ select:focus-visible {
 
 .field > span {
   color: #95a29e;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 500;
 }
 
@@ -1502,7 +1505,7 @@ select:focus-visible {
   height: 38px;
   padding: 0 11px;
   color: var(--text);
-  font-size: 10px;
+  font-size: 13px;
   border: 1px solid var(--border);
   border-radius: 9px;
   outline: none;
@@ -1573,7 +1576,7 @@ select:focus-visible {
   display: flex;
   justify-content: space-between;
   color: #95a29e;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .range-field output {
@@ -1608,14 +1611,14 @@ select:focus-visible {
 }
 
 .toggle-row strong {
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .toggle-row small {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 7px;
+  font-size: 10px;
 }
 
 .toggle-row__input {
@@ -1701,19 +1704,19 @@ select:focus-visible {
 
 .backup-summary > div:nth-child(2) span {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .backup-summary > div:nth-child(2) strong {
   margin-top: 5px;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
 }
 
 .backup-summary > div:nth-child(2) p {
   margin: 5px 0 0;
   color: #74837e;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .backup-summary__health {
@@ -1723,7 +1726,7 @@ select:focus-visible {
   margin-left: auto;
   padding: 7px 10px;
   color: var(--mint);
-  font-size: 8px;
+  font-size: 11px;
   border-radius: 9px;
   background: var(--mint-dim);
 }
@@ -1795,20 +1798,20 @@ select:focus-visible {
 }
 
 .backup-row__identity strong {
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .backup-row__identity span {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .backup-kind {
   padding: 4px 7px;
   color: var(--mint);
-  font-size: 7px;
+  font-size: 10px;
   border-radius: 7px;
   background: var(--mint-dim);
 }
@@ -1918,7 +1921,7 @@ select:focus-visible {
   max-width: 420px;
   margin: 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.6;
 }
 
@@ -1982,13 +1985,13 @@ select:focus-visible {
 }
 
 .server-profile__copy strong {
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .server-profile__copy small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .server-profile__active {
@@ -1996,7 +1999,7 @@ select:focus-visible {
   align-items: center;
   gap: 4px;
   color: var(--mint);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .server-profile__actions {
@@ -2018,13 +2021,13 @@ select:focus-visible {
 }
 
 .server-manager__delete-confirm strong {
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .server-manager__delete-confirm p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.55;
 }
 
@@ -2044,7 +2047,7 @@ select:focus-visible {
 
 .dialog__header h2 {
   margin: 0;
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -2072,13 +2075,13 @@ select:focus-visible {
 }
 
 .connection-intro strong {
-  font-size: 10px;
+  font-size: 13px;
 }
 
 .connection-intro p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.6;
 }
 
@@ -2109,7 +2112,7 @@ select:focus-visible {
   min-height: 37px;
   gap: 8px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -2128,7 +2131,7 @@ select:focus-visible {
 
 .field__hint {
   color: #62716d;
-  font-size: 7px;
+  font-size: 10px;
   line-height: 1.5;
 }
 
@@ -2155,20 +2158,20 @@ select:focus-visible {
 }
 
 .trust-card strong {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .trust-card p {
   margin: 4px 0 7px;
   color: var(--muted);
-  font-size: 7px;
+  font-size: 10px;
   line-height: 1.55;
 }
 
 .trust-card code {
   color: #e1c58f;
   font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 8px;
+  font-size: 11px;
   overflow-wrap: anywhere;
 }
 
@@ -2182,7 +2185,7 @@ select:focus-visible {
   margin: 15px 22px 0;
   padding: 10px 12px;
   color: #efaaa7;
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.55;
   border: 1px solid rgba(231, 123, 121, 0.2);
   border-radius: 9px;
@@ -2262,13 +2265,13 @@ select:focus-visible {
 }
 
 .setup-brand strong {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .setup-brand small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .setup-steps {
@@ -2285,7 +2288,7 @@ select:focus-visible {
   align-items: center;
   gap: 6px;
   color: #4f5f5a;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .setup-step > span {
@@ -2348,7 +2351,7 @@ select:focus-visible {
 .setup-title h1,
 .setup-complete h1 {
   margin: 2px 0 0;
-  font-size: 22px;
+  font-size: 25px;
   font-weight: 600;
   letter-spacing: -0.035em;
 }
@@ -2358,7 +2361,7 @@ select:focus-visible {
   max-width: 600px;
   margin: 7px 0 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.65;
 }
 
@@ -2393,13 +2396,13 @@ select:focus-visible {
 
 .check-item span {
   color: var(--muted);
-  font-size: 7px;
+  font-size: 10px;
 }
 
 .check-item strong {
   margin-top: 4px;
   color: var(--text);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 600;
 }
 
@@ -2419,13 +2422,13 @@ select:focus-visible {
 
 .setup-callout strong {
   display: block;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .setup-callout p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.55;
 }
 
@@ -2460,13 +2463,13 @@ select:focus-visible {
 }
 
 .setup-checkbox strong {
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .setup-checkbox small {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 7px;
+  font-size: 10px;
 }
 
 .setup-summary {
@@ -2492,13 +2495,13 @@ select:focus-visible {
 
 .setup-summary span {
   color: var(--muted);
-  font-size: 7px;
+  font-size: 10px;
 }
 
 .setup-summary strong {
   margin-top: 4px;
   color: var(--text);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .setup-complete {
@@ -2543,7 +2546,7 @@ select:focus-visible {
   align-items: center;
   gap: 7px;
   color: #687b74;
-  font-size: 8px;
+  font-size: 11px;
 }
 
 .setup-security svg {
@@ -2561,7 +2564,7 @@ select:focus-visible {
   gap: 9px;
   margin: 16px 22px 0;
   color: #74867f;
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.55;
 }
 
@@ -2591,7 +2594,7 @@ select:focus-visible {
   min-height: 40px;
   padding: 0 14px;
   color: #b9cbc4;
-  font-size: 9px;
+  font-size: 12px;
   border: 1px solid rgba(124, 224, 189, 0.18);
   border-radius: 11px;
   background: rgba(17, 29, 26, 0.97);
@@ -3043,247 +3046,5 @@ select:focus-visible {
     right: 12px;
     bottom: 12px;
     left: 12px;
-  }
-}
-
-/* Windows WebView2 benefits from native UI fonts and a slightly larger type
-   scale. Keep these overrides platform-scoped so macOS and Linux retain the
-   established visual density. */
-:root[data-platform="windows"] {
-  font-family:
-    "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI",
-    "Microsoft YaHei", system-ui, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-  text-rendering: auto;
-  --sidebar-width: 252px;
-}
-
-html[data-platform="windows"] body {
-  font-size: 14px;
-}
-
-html[data-platform="windows"] .page {
-  width: calc(100% - clamp(44px, 5vw, 96px));
-  max-width: 2000px;
-  padding: clamp(36px, 3vw, 58px) 0 64px;
-}
-
-html[data-platform="windows"] .brand strong {
-  font-size: 20px;
-}
-
-html[data-platform="windows"] .brand span,
-html[data-platform="windows"] .eyebrow,
-html[data-platform="windows"] .status-pill,
-html[data-platform="windows"] .metric-card__detail,
-html[data-platform="windows"] .metric-trend,
-html[data-platform="windows"] .text-button,
-html[data-platform="windows"] .player-row__identity span,
-html[data-platform="windows"] .ping,
-html[data-platform="windows"] .activity-row span,
-html[data-platform="windows"] .preview-banner,
-html[data-platform="windows"] .data-table__head,
-html[data-platform="windows"] .table-player small,
-html[data-platform="windows"] .settings-card header p,
-html[data-platform="windows"] .toggle-row small,
-html[data-platform="windows"] .backup-summary > div:nth-child(2) span,
-html[data-platform="windows"] .backup-summary > div:nth-child(2) p,
-html[data-platform="windows"] .backup-summary__health,
-html[data-platform="windows"] .backup-row__identity span,
-html[data-platform="windows"] .backup-kind,
-html[data-platform="windows"] .server-profile__copy small,
-html[data-platform="windows"] .server-profile__active,
-html[data-platform="windows"] .server-manager__delete-confirm p,
-html[data-platform="windows"] .connection-intro p,
-html[data-platform="windows"] .field__hint,
-html[data-platform="windows"] .trust-card p,
-html[data-platform="windows"] .trust-card code,
-html[data-platform="windows"] .form-error,
-html[data-platform="windows"] .setup-brand small,
-html[data-platform="windows"] .setup-step,
-html[data-platform="windows"] .check-item span,
-html[data-platform="windows"] .setup-callout p,
-html[data-platform="windows"] .setup-checkbox small,
-html[data-platform="windows"] .setup-summary span,
-html[data-platform="windows"] .setup-security,
-html[data-platform="windows"] .security-note,
-html[data-platform="windows"] .toast {
-  font-size: 12px;
-}
-
-html[data-platform="windows"] .server-switcher__copy small,
-html[data-platform="windows"] .sidebar__eyebrow,
-html[data-platform="windows"] .nav-item em,
-html[data-platform="windows"] .language-select,
-html[data-platform="windows"] .language-select select,
-html[data-platform="windows"] .sidebar-status,
-html[data-platform="windows"] .sidebar-version,
-html[data-platform="windows"] .sidebar-version small,
-html[data-platform="windows"] .hero-card__status,
-html[data-platform="windows"] .hero-card__meta div,
-html[data-platform="windows"] .metric-card__top,
-html[data-platform="windows"] .activity-row strong,
-html[data-platform="windows"] .summary-strip span,
-html[data-platform="windows"] .search-box input,
-html[data-platform="windows"] .terminal-search input,
-html[data-platform="windows"] .data-table__row,
-html[data-platform="windows"] .terminal-title,
-html[data-platform="windows"] .terminal-output,
-html[data-platform="windows"] .settings-nav__item,
-html[data-platform="windows"] .field > span,
-html[data-platform="windows"] .range-field > span,
-html[data-platform="windows"] .toggle-row strong,
-html[data-platform="windows"] .backup-row__identity strong,
-html[data-platform="windows"] .server-manager__intro p,
-html[data-platform="windows"] .auth-tab,
-html[data-platform="windows"] .trust-card strong,
-html[data-platform="windows"] .setup-title p,
-html[data-platform="windows"] .setup-complete p,
-html[data-platform="windows"] .check-item strong,
-html[data-platform="windows"] .setup-callout strong,
-html[data-platform="windows"] .setup-checkbox strong,
-html[data-platform="windows"] .setup-summary strong {
-  font-size: 13px;
-}
-
-html[data-platform="windows"] .button,
-html[data-platform="windows"] .hero-card__content > p,
-html[data-platform="windows"] .avatar,
-html[data-platform="windows"] .player-row__identity strong,
-html[data-platform="windows"] .table-player strong,
-html[data-platform="windows"] .field input,
-html[data-platform="windows"] .field select,
-html[data-platform="windows"] .server-manager__delete-confirm strong,
-html[data-platform="windows"] .connection-intro strong {
-  font-size: 14px;
-}
-
-html[data-platform="windows"] .server-switcher__copy strong,
-html[data-platform="windows"] .nav-item,
-html[data-platform="windows"] .page-header p,
-html[data-platform="windows"] .server-profile__copy strong {
-  font-size: 15px;
-}
-
-html[data-platform="windows"] .panel__header h3,
-html[data-platform="windows"] .settings-card h3 {
-  font-size: 16px;
-}
-
-html[data-platform="windows"] .dialog__header h2 {
-  font-size: 20px;
-}
-
-html[data-platform="windows"] .summary-strip strong {
-  font-size: 22px;
-}
-
-html[data-platform="windows"] .metric-card__value {
-  font-size: 26px;
-}
-
-html[data-platform="windows"] .setup-title h1,
-html[data-platform="windows"] .setup-complete h1 {
-  font-size: 27px;
-}
-
-html[data-platform="windows"] .hero-card__content h2 {
-  font-size: 32px;
-}
-
-html[data-platform="windows"] .language-select,
-html[data-platform="windows"] .button {
-  min-height: 40px;
-}
-
-html[data-platform="windows"] .icon-button {
-  width: 36px;
-  height: 36px;
-}
-
-html[data-platform="windows"] .round-action {
-  width: 42px;
-  height: 42px;
-}
-
-html[data-platform="windows"] .metric-card {
-  min-height: 156px;
-  padding: 19px;
-}
-
-@media (min-width: 1440px) {
-  :root[data-platform="windows"] {
-    --sidebar-width: 268px;
-  }
-
-  html[data-platform="windows"] .sidebar {
-    padding-right: 18px;
-    padding-left: 18px;
-  }
-
-  html[data-platform="windows"] .page-header {
-    margin-bottom: 32px;
-  }
-
-  html[data-platform="windows"] .page-header h1 {
-    font-size: clamp(32px, 2vw, 40px);
-  }
-
-  html[data-platform="windows"] .hero-card {
-    min-height: 232px;
-    padding-top: 36px;
-    padding-bottom: 36px;
-  }
-
-  html[data-platform="windows"] .metric-grid,
-  html[data-platform="windows"] .dashboard-columns {
-    gap: 18px;
-    margin-top: 18px;
-  }
-
-  html[data-platform="windows"] .metric-card {
-    min-height: 172px;
-    padding: 22px;
-  }
-
-  html[data-platform="windows"] .dashboard-columns {
-    grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
-  }
-}
-
-@media (max-width: 1100px) {
-  :root[data-platform="windows"] {
-    --sidebar-width: 220px;
-  }
-
-  html[data-platform="windows"] .page {
-    width: calc(100% - 44px);
-  }
-}
-
-@media (max-width: 900px) {
-  :root[data-platform="windows"] {
-    --sidebar-width: 72px;
-  }
-
-  html[data-platform="windows"] .page {
-    width: calc(100% - 32px);
-    padding-top: 28px;
-  }
-}
-
-@media (max-width: 760px) {
-  :root[data-platform="windows"] {
-    --sidebar-width: 60px;
-  }
-
-  html[data-platform="windows"] .page {
-    width: calc(100% - 22px);
-    padding-top: 22px;
-  }
-
-  html[data-platform="windows"] .setup-step {
-    font-size: 0;
   }
 }

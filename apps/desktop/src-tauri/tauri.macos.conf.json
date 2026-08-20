@@ -1,0 +1,22 @@
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Paldeck",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 720,
+        "minHeight": 560,
+        "center": true,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ]
+  },
+  "bundle": {
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    }
+  }
+}

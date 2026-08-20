@@ -1,0 +1,6 @@
+:root[data-platform="linux"] {
+  --ui-font-family: Inter, system-ui, sans-serif;
+  --sidebar-width: 226px;
+  --page-max-width: 1180px;
+  --page-gutter: 72px;
+}

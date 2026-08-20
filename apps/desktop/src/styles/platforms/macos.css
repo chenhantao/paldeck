@@ -1,0 +1,6 @@
+:root[data-platform="macos"] {
+  --ui-font-family: Inter, "SF Pro Display", "PingFang SC", sans-serif;
+  --sidebar-width: 226px;
+  --page-max-width: 1180px;
+  --page-gutter: 72px;
+}
