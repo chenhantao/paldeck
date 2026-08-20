@@ -12,6 +12,7 @@ import {
   fetchServerSnapshot,
   isDesktopRuntime,
   runComposeAction,
+  runSafeLifecycleAction,
   runServerAction,
 } from "./lib/backend";
 import { profileNeedsPassword } from "./lib/profile";
@@ -117,7 +118,7 @@ export function App() {
             profile={profile}
             onNotice={setNotice}
             onApplySettings={async () => {
-              const result = await runComposeAction(profile, "restart");
+              const result = await runComposeAction(profile, "recreate");
               if (!result.success) {
                 throw new Error(errorMessage(result.stderr || t("远程 Compose 操作失败")));
               }
@@ -131,7 +132,7 @@ export function App() {
             profile={profile}
             onNotice={setNotice}
             onApplySettings={async () => {
-              const result = await runComposeAction(profile, "restart");
+              const result = await runComposeAction(profile, "recreate");
               if (!result.success) {
                 throw new Error(errorMessage(result.stderr || t("远程 Compose 操作失败")));
               }
@@ -159,6 +160,24 @@ export function App() {
                 isDesktopRuntime()
                   ? t("远程 Compose 操作已完成")
                   : t("Preview：桌面运行时中才会执行远程操作"),
+              );
+            }}
+            onLifecycleAction={async (action, message, delaySeconds) => {
+              setNotice(t(action === "restart" ? "正在安全重启服务器…" : "正在安全停止服务器…"));
+              const result = await runSafeLifecycleAction(
+                profile,
+                action,
+                message,
+                delaySeconds,
+              );
+              if (!result.success) {
+                throw new Error(errorMessage(result.stderr || t("安全停服操作失败")));
+              }
+              await refreshSnapshot();
+              setNotice(
+                isDesktopRuntime()
+                  ? t(action === "restart" ? "世界已保存，服务器已重启" : "世界已保存，服务器已停止")
+                  : t("Preview：桌面运行时中才会执行安全停服操作"),
               );
             }}
             onSaveWorld={async () => {
@@ -300,7 +319,6 @@ const emptySnapshot: ServerSnapshot = {
 
 const composeProgressMessage = {
   start: "正在启动服务器…",
-  stop: "正在停止服务器…",
-  restart: "正在重启服务器…",
+  recreate: "正在重新创建服务器容器…",
   pull: "正在拉取服务器镜像…",
 } as const;

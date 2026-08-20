@@ -1863,6 +1863,24 @@ select:focus-visible {
   align-self: flex-end;
 }
 
+.lifecycle-dialog__body {
+  padding: 18px 22px 0;
+}
+
+.connection-intro.lifecycle-dialog__intro {
+  margin: 0 0 16px;
+  border-color: rgba(228, 184, 111, 0.2);
+  background: rgba(228, 184, 111, 0.05);
+}
+
+.lifecycle-dialog__intro .connection-intro__icon {
+  color: var(--amber);
+}
+
+.lifecycle-dialog__fields {
+  padding: 0;
+}
+
 .apply-settings-dialog__body {
   padding: 18px 22px 0;
 }
@@ -2996,6 +3014,11 @@ select:focus-visible {
     padding-left: 16px;
   }
 
+  .lifecycle-dialog__body {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
   .server-manager__intro,
   .server-manager__delete-confirm {
     align-items: stretch;
@@ -3020,5 +3043,247 @@ select:focus-visible {
     right: 12px;
     bottom: 12px;
     left: 12px;
+  }
+}
+
+/* Windows WebView2 benefits from native UI fonts and a slightly larger type
+   scale. Keep these overrides platform-scoped so macOS and Linux retain the
+   established visual density. */
+:root[data-platform="windows"] {
+  font-family:
+    "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI",
+    "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  text-rendering: auto;
+  --sidebar-width: 252px;
+}
+
+html[data-platform="windows"] body {
+  font-size: 14px;
+}
+
+html[data-platform="windows"] .page {
+  width: calc(100% - clamp(44px, 5vw, 96px));
+  max-width: 2000px;
+  padding: clamp(36px, 3vw, 58px) 0 64px;
+}
+
+html[data-platform="windows"] .brand strong {
+  font-size: 20px;
+}
+
+html[data-platform="windows"] .brand span,
+html[data-platform="windows"] .eyebrow,
+html[data-platform="windows"] .status-pill,
+html[data-platform="windows"] .metric-card__detail,
+html[data-platform="windows"] .metric-trend,
+html[data-platform="windows"] .text-button,
+html[data-platform="windows"] .player-row__identity span,
+html[data-platform="windows"] .ping,
+html[data-platform="windows"] .activity-row span,
+html[data-platform="windows"] .preview-banner,
+html[data-platform="windows"] .data-table__head,
+html[data-platform="windows"] .table-player small,
+html[data-platform="windows"] .settings-card header p,
+html[data-platform="windows"] .toggle-row small,
+html[data-platform="windows"] .backup-summary > div:nth-child(2) span,
+html[data-platform="windows"] .backup-summary > div:nth-child(2) p,
+html[data-platform="windows"] .backup-summary__health,
+html[data-platform="windows"] .backup-row__identity span,
+html[data-platform="windows"] .backup-kind,
+html[data-platform="windows"] .server-profile__copy small,
+html[data-platform="windows"] .server-profile__active,
+html[data-platform="windows"] .server-manager__delete-confirm p,
+html[data-platform="windows"] .connection-intro p,
+html[data-platform="windows"] .field__hint,
+html[data-platform="windows"] .trust-card p,
+html[data-platform="windows"] .trust-card code,
+html[data-platform="windows"] .form-error,
+html[data-platform="windows"] .setup-brand small,
+html[data-platform="windows"] .setup-step,
+html[data-platform="windows"] .check-item span,
+html[data-platform="windows"] .setup-callout p,
+html[data-platform="windows"] .setup-checkbox small,
+html[data-platform="windows"] .setup-summary span,
+html[data-platform="windows"] .setup-security,
+html[data-platform="windows"] .security-note,
+html[data-platform="windows"] .toast {
+  font-size: 12px;
+}
+
+html[data-platform="windows"] .server-switcher__copy small,
+html[data-platform="windows"] .sidebar__eyebrow,
+html[data-platform="windows"] .nav-item em,
+html[data-platform="windows"] .language-select,
+html[data-platform="windows"] .language-select select,
+html[data-platform="windows"] .sidebar-status,
+html[data-platform="windows"] .sidebar-version,
+html[data-platform="windows"] .sidebar-version small,
+html[data-platform="windows"] .hero-card__status,
+html[data-platform="windows"] .hero-card__meta div,
+html[data-platform="windows"] .metric-card__top,
+html[data-platform="windows"] .activity-row strong,
+html[data-platform="windows"] .summary-strip span,
+html[data-platform="windows"] .search-box input,
+html[data-platform="windows"] .terminal-search input,
+html[data-platform="windows"] .data-table__row,
+html[data-platform="windows"] .terminal-title,
+html[data-platform="windows"] .terminal-output,
+html[data-platform="windows"] .settings-nav__item,
+html[data-platform="windows"] .field > span,
+html[data-platform="windows"] .range-field > span,
+html[data-platform="windows"] .toggle-row strong,
+html[data-platform="windows"] .backup-row__identity strong,
+html[data-platform="windows"] .server-manager__intro p,
+html[data-platform="windows"] .auth-tab,
+html[data-platform="windows"] .trust-card strong,
+html[data-platform="windows"] .setup-title p,
+html[data-platform="windows"] .setup-complete p,
+html[data-platform="windows"] .check-item strong,
+html[data-platform="windows"] .setup-callout strong,
+html[data-platform="windows"] .setup-checkbox strong,
+html[data-platform="windows"] .setup-summary strong {
+  font-size: 13px;
+}
+
+html[data-platform="windows"] .button,
+html[data-platform="windows"] .hero-card__content > p,
+html[data-platform="windows"] .avatar,
+html[data-platform="windows"] .player-row__identity strong,
+html[data-platform="windows"] .table-player strong,
+html[data-platform="windows"] .field input,
+html[data-platform="windows"] .field select,
+html[data-platform="windows"] .server-manager__delete-confirm strong,
+html[data-platform="windows"] .connection-intro strong {
+  font-size: 14px;
+}
+
+html[data-platform="windows"] .server-switcher__copy strong,
+html[data-platform="windows"] .nav-item,
+html[data-platform="windows"] .page-header p,
+html[data-platform="windows"] .server-profile__copy strong {
+  font-size: 15px;
+}
+
+html[data-platform="windows"] .panel__header h3,
+html[data-platform="windows"] .settings-card h3 {
+  font-size: 16px;
+}
+
+html[data-platform="windows"] .dialog__header h2 {
+  font-size: 20px;
+}
+
+html[data-platform="windows"] .summary-strip strong {
+  font-size: 22px;
+}
+
+html[data-platform="windows"] .metric-card__value {
+  font-size: 26px;
+}
+
+html[data-platform="windows"] .setup-title h1,
+html[data-platform="windows"] .setup-complete h1 {
+  font-size: 27px;
+}
+
+html[data-platform="windows"] .hero-card__content h2 {
+  font-size: 32px;
+}
+
+html[data-platform="windows"] .language-select,
+html[data-platform="windows"] .button {
+  min-height: 40px;
+}
+
+html[data-platform="windows"] .icon-button {
+  width: 36px;
+  height: 36px;
+}
+
+html[data-platform="windows"] .round-action {
+  width: 42px;
+  height: 42px;
+}
+
+html[data-platform="windows"] .metric-card {
+  min-height: 156px;
+  padding: 19px;
+}
+
+@media (min-width: 1440px) {
+  :root[data-platform="windows"] {
+    --sidebar-width: 268px;
+  }
+
+  html[data-platform="windows"] .sidebar {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  html[data-platform="windows"] .page-header {
+    margin-bottom: 32px;
+  }
+
+  html[data-platform="windows"] .page-header h1 {
+    font-size: clamp(32px, 2vw, 40px);
+  }
+
+  html[data-platform="windows"] .hero-card {
+    min-height: 232px;
+    padding-top: 36px;
+    padding-bottom: 36px;
+  }
+
+  html[data-platform="windows"] .metric-grid,
+  html[data-platform="windows"] .dashboard-columns {
+    gap: 18px;
+    margin-top: 18px;
+  }
+
+  html[data-platform="windows"] .metric-card {
+    min-height: 172px;
+    padding: 22px;
+  }
+
+  html[data-platform="windows"] .dashboard-columns {
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  }
+}
+
+@media (max-width: 1100px) {
+  :root[data-platform="windows"] {
+    --sidebar-width: 220px;
+  }
+
+  html[data-platform="windows"] .page {
+    width: calc(100% - 44px);
+  }
+}
+
+@media (max-width: 900px) {
+  :root[data-platform="windows"] {
+    --sidebar-width: 72px;
+  }
+
+  html[data-platform="windows"] .page {
+    width: calc(100% - 32px);
+    padding-top: 28px;
+  }
+}
+
+@media (max-width: 760px) {
+  :root[data-platform="windows"] {
+    --sidebar-width: 60px;
+  }
+
+  html[data-platform="windows"] .page {
+    width: calc(100% - 22px);
+    padding-top: 22px;
+  }
+
+  html[data-platform="windows"] .setup-step {
+    font-size: 0;
   }
 }

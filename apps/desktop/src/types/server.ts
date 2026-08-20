@@ -5,7 +5,8 @@ export type ServerStatus =
   | "stopping"
   | "unknown";
 
-export type ComposeAction = "start" | "stop" | "restart" | "pull";
+export type ComposeAction = "start" | "recreate" | "pull";
+export type LifecycleAction = "stop" | "restart";
 
 export type Authentication =
   | {

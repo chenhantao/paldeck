@@ -18,12 +18,13 @@ import {
   Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { LifecycleActionDialog } from "../components/LifecycleActionDialog";
 import { MetricCard } from "../components/ui/MetricCard";
 import { StatusPill } from "../components/ui/StatusPill";
 import { formatBytes, formatDateTime, formatTime, formatUptime } from "../lib/format";
 import { fetchBackups, fetchOnlinePlayers, fetchRemoteLogs } from "../lib/backend";
 import { parseRemoteLogs } from "../lib/remoteData";
-import type { Backup, LogEntry, Player, ServerProfile, ServerSnapshot } from "../types/server";
+import type { Backup, LifecycleAction, LogEntry, Player, ServerProfile, ServerSnapshot } from "../types/server";
 import type { ComposeAction } from "../types/server";
 import { useI18n } from "../i18n/I18nContext";
 
@@ -34,6 +35,7 @@ interface DashboardPageProps {
   onOpenPlayers: () => void;
   onNotice: (message: string) => void;
   onComposeAction: (action: ComposeAction) => Promise<void>;
+  onLifecycleAction: (action: LifecycleAction, message: string, delaySeconds: number) => Promise<void>;
   onSaveWorld: () => Promise<void>;
 }
 
@@ -44,12 +46,15 @@ export function DashboardPage({
   onOpenPlayers,
   onNotice,
   onComposeAction,
+  onLifecycleAction,
   onSaveWorld,
 }: DashboardPageProps) {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [backups, setBackups] = useState<Backup[]>([]);
+  const [lifecycleAction, setLifecycleAction] = useState<LifecycleAction | null>(null);
+  const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   const loadingPlayers = useRef(false);
   const lastPlayersError = useRef<string | null>(null);
   const { t, locale, errorMessage } = useI18n();
@@ -107,6 +112,22 @@ export function DashboardPage({
       await operation();
     } catch (error) {
       onNotice(errorMessage(error));
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const performLifecycleAction = async (message: string, delaySeconds: number) => {
+    if (!lifecycleAction) return;
+    setBusyAction(lifecycleAction);
+    setLifecycleError(null);
+    try {
+      await onLifecycleAction(lifecycleAction, message, delaySeconds);
+      setLifecycleAction(null);
+    } catch (error) {
+      const message = errorMessage(error);
+      setLifecycleError(message);
+      onNotice(message);
     } finally {
       setBusyAction(null);
     }
@@ -190,17 +211,18 @@ export function DashboardPage({
             onClick={() =>
               performAction("start", () => onComposeAction("start"))
             }
-            disabled={busyAction !== null}
+            disabled={busyAction !== null || snapshot.status === "online"}
           >
             {busyAction === "start" ? <RefreshCw size={18} className="spin" /> : <Play size={18} fill="currentColor" />}
           </button>
           <button
             className="round-action"
             title={t("重启")}
-            onClick={() =>
-              performAction("restart", () => onComposeAction("restart"))
-            }
-            disabled={busyAction !== null}
+            onClick={() => {
+              setLifecycleError(null);
+              setLifecycleAction("restart");
+            }}
+            disabled={busyAction !== null || snapshot.status !== "online"}
           >
             <RefreshCw
               size={18}
@@ -210,10 +232,11 @@ export function DashboardPage({
           <button
             className="round-action round-action--danger"
             title={t("停止")}
-            onClick={() =>
-              performAction("stop", () => onComposeAction("stop"))
-            }
-            disabled={busyAction !== null}
+            onClick={() => {
+              setLifecycleError(null);
+              setLifecycleAction("stop");
+            }}
+            disabled={busyAction !== null || snapshot.status !== "online"}
           >
             <Square size={16} fill="currentColor" />
           </button>
@@ -349,6 +372,19 @@ export function DashboardPage({
           <span>{t("容器正在运行，但 Palworld REST API 尚未就绪；玩家、FPS 和世界天数暂不可用。")}</span>
         </div>
       )}
+
+      <LifecycleActionDialog
+        action={lifecycleAction}
+        running={busyAction === "restart" || busyAction === "stop"}
+        error={lifecycleError}
+        onClose={() => {
+          if (busyAction === null) {
+            setLifecycleAction(null);
+            setLifecycleError(null);
+          }
+        }}
+        onConfirm={performLifecycleAction}
+      />
     </div>
   );
 }

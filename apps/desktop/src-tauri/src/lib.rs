@@ -6,8 +6,8 @@ use commands::{
     check_connection, compose_action, create_backup, delete_backup, initialize_server,
     inspect_environment, inspect_server, list_backups, online_players, player_action,
     probe_connection, read_backup_settings, read_env, read_logs, read_world_settings,
-    restore_backup, server_action, server_snapshot, write_backup_settings, write_env,
-    write_world_settings,
+    restore_backup, safe_lifecycle_action, server_action, server_snapshot, write_backup_settings,
+    write_env, write_world_settings,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -29,6 +29,7 @@ pub fn run() {
             delete_backup,
             restore_backup,
             compose_action,
+            safe_lifecycle_action,
             server_action,
             read_logs,
             read_env,

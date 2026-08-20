@@ -5,6 +5,7 @@ import type {
   ConnectionProbe,
   EnvironmentInspection,
   InitializationOptions,
+  LifecycleAction,
   Backup,
   BackupSettings,
   Player,
@@ -172,6 +173,21 @@ export async function runPlayerAction(
     action,
     userId,
     message,
+  });
+}
+
+export async function runSafeLifecycleAction(
+  profile: ServerProfile,
+  action: LifecycleAction,
+  message: string,
+  delaySeconds: number,
+): Promise<CommandResult> {
+  if (!isDesktopRuntime()) return previewResult;
+  return invoke<CommandResult>("safe_lifecycle_action", {
+    profile,
+    action,
+    message,
+    delaySeconds,
   });
 }
 

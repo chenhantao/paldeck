@@ -850,9 +850,8 @@ pub async fn compose_action(
 ) -> Result<CommandResult, String> {
     let compose_command = match action.as_str() {
         "start" => format!("{COMPOSE_COMMAND} up -d"),
-        "stop" => format!("{COMPOSE_COMMAND} down"),
         // Recreate the container so changes written to .env are applied.
-        "restart" => format!("{COMPOSE_COMMAND} up -d --force-recreate"),
+        "recreate" => format!("{COMPOSE_COMMAND} up -d --force-recreate palworld"),
         "pull" => format!("{COMPOSE_COMMAND} pull"),
         _ => return Err("不支持的 Compose 操作".into()),
     };
@@ -863,6 +862,52 @@ pub async fn compose_action(
         _ => Duration::from_secs(2 * 60),
     };
     run_remote_with_timeout(&profile, &command, timeout).await
+}
+
+#[tauri::command]
+pub async fn safe_lifecycle_action(
+    profile: ServerProfile,
+    action: String,
+    message: String,
+    delay_seconds: u16,
+) -> Result<CommandResult, String> {
+    validate_player_message(&message)?;
+    if message.trim().is_empty() {
+        return Err("停服广播消息不能为空".into());
+    }
+    if delay_seconds > 300 {
+        return Err("停服倒计时必须在 0 到 300 秒之间".into());
+    }
+    let script = safe_lifecycle_script(&action, &message, delay_seconds)?;
+    let command = in_compose_directory(&profile, &script)?;
+    run_remote_with_timeout(&profile, &command, Duration::from_secs(8 * 60)).await
+}
+
+fn safe_lifecycle_script(
+    action: &str,
+    message: &str,
+    delay_seconds: u16,
+) -> Result<String, String> {
+    let lifecycle_command = match action {
+        "stop" => format!("{COMPOSE_COMMAND} down"),
+        "restart" => format!("{COMPOSE_COMMAND} restart -t 120 palworld"),
+        _ => return Err("不支持的安全停服操作".into()),
+    };
+    let payload = serde_json::to_string(&serde_json::json!({ "message": message }))
+        .map_err(|error| error.to_string())?;
+    let save_script = save_world_script();
+    Ok(format!(
+        "if [ -z \"$({COMPOSE_COMMAND} ps --status running -q palworld)\" ]; then \
+           printf '服务器当前未运行。\\n' >&2; exit 75; fi; \
+         {COMPOSE_COMMAND} exec -T palworld rest-cli announce {} --no-flush-log; \
+         printf 'PALDECK_BROADCAST_SENT=1\\n'; \
+         sleep {delay_seconds}; \
+         {save_script}; \
+         {lifecycle_command}; \
+         printf 'PALDECK_LIFECYCLE_COMPLETED={}\\n'",
+        shell_quote(&payload),
+        shell_quote(action),
+    ))
 }
 
 #[tauri::command]
@@ -1345,10 +1390,10 @@ fn upsert_env_value(contents: &mut String, key: &str, value: &str) {
 mod tests {
     use super::{
         create_backup_script, dotenv_quote, env_string, inspection_flag, inspection_value,
-        parse_memory_usage, restore_backup_script, save_world_script, server_snapshot_script,
-        set_env_value, upgrade_compose_script, validate_backup_filename, validate_backup_settings,
-        validate_data_directory, validate_player_message, validate_world_settings,
-        COMPOSE_TEMPLATE, ENV_TEMPLATE, WORLD_SETTING_DEFAULTS,
+        parse_memory_usage, restore_backup_script, safe_lifecycle_script, save_world_script,
+        server_snapshot_script, set_env_value, upgrade_compose_script, validate_backup_filename,
+        validate_backup_settings, validate_data_directory, validate_player_message,
+        validate_world_settings, COMPOSE_TEMPLATE, ENV_TEMPLATE, WORLD_SETTING_DEFAULTS,
     };
     use crate::models::{BackupSettings, WorldSettingsInput};
 
@@ -1483,6 +1528,8 @@ mod tests {
             upgrade_compose_script(),
             create_backup_script(),
             restore_backup_script("palworld-save-2026-08-16_03-00-00.tar.gz"),
+            safe_lifecycle_script("restart", "Restarting soon", 10).unwrap(),
+            safe_lifecycle_script("stop", "Stopping soon", 10).unwrap(),
         ] {
             let status = std::process::Command::new("sh")
                 .args(["-n", "-c", &script])
@@ -1507,5 +1554,20 @@ mod tests {
         assert!(script.contains("save_exit=$?"));
         assert!(script.contains("exit \"$save_exit\""));
         assert!(script.contains("PALDECK_SAVE_VERIFIED=%s"));
+    }
+
+    #[test]
+    fn safe_lifecycle_broadcasts_saves_then_uses_the_requested_compose_operation() {
+        let restart = safe_lifecycle_script("restart", "Restarting soon", 10).unwrap();
+        let announce = restart.find("rest-cli announce").unwrap();
+        let save = restart.find("rest-cli save").unwrap();
+        let lifecycle = restart.find("restart -t 120 palworld").unwrap();
+        assert!(announce < save && save < lifecycle);
+        assert!(!restart.contains("--force-recreate"));
+        assert!(restart.contains("sleep 10"));
+
+        let stop = safe_lifecycle_script("stop", "Stopping soon", 0).unwrap();
+        assert!(stop.contains("-f ./compose.yaml down"));
+        assert!(safe_lifecycle_script("recreate", "No", 0).is_err());
     }
 }

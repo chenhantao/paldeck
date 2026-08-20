@@ -17,6 +17,7 @@ desktop client performs allowlisted management operations over SSH.
 - Deploy a Palworld dedicated server with Docker Compose
 - Configure common server, network, backup, and world options through `.env`
 - Manage servers from a cross-platform Tauri 2, React, and Rust desktop client
+- Use Windows-optimized typography and a fluid Windows layout that expands on wide or maximized windows
 - Save multiple server profiles and add, switch, edit, or locally remove them (Beta)
 - Use the desktop interface in English or Simplified Chinese, or follow the system language
 - Inspect Linux, amd64, Docker, and Compose during first-time setup
@@ -32,6 +33,8 @@ desktop client performs allowlisted management operations over SSH.
 - Broadcast messages and kick or ban online players through the container REST client
 - Show immediate progress for manual world saves, preserve REST failures, and verify successful
   requests against the remote save-file timestamp
+- Safely stop or restart by broadcasting a customizable countdown, verifying a world save, and
+  aborting the lifecycle operation if broadcast or save fails
 - After safely writing world settings, choose whether to recreate the container immediately or
   apply the changes during a later restart
 
