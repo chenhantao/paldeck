@@ -2462,6 +2462,14 @@ select:focus-visible {
   display: block;
 }
 
+.setup-checkbox--confirmation {
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid rgba(124, 224, 189, 0.16);
+  border-radius: 11px;
+  background: rgba(124, 224, 189, 0.035);
+}
+
 .setup-checkbox strong {
   font-size: 12px;
 }

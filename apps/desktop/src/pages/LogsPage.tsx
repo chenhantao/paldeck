@@ -5,22 +5,34 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { formatTime } from "../lib/format";
 import { fetchRemoteLogs } from "../lib/backend";
 import { parseRemoteLogs } from "../lib/remoteData";
 import type { LogEntry, ServerProfile } from "../types/server";
 import { useI18n } from "../i18n/I18nContext";
 
+const LOG_TAIL_LINES = 200;
+const LOG_POLL_INTERVAL_MS = 5_000;
+const FOLLOW_THRESHOLD_PX = 48;
+
 export function LogsPage({ profile, onNotice }: { profile: ServerProfile; onNotice: (message: string) => void }) {
   const [paused, setPaused] = useState(false);
   const [query, setQuery] = useState("");
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const lastError = useRef<string | null>(null);
+  const outputRef = useRef<HTMLDivElement | null>(null);
+  const followsLatest = useRef(true);
   const { t, locale, errorMessage } = useI18n();
   const load = useCallback(async () => {
     try {
-      const result = await fetchRemoteLogs(profile, 500);
+      const result = await fetchRemoteLogs(profile, LOG_TAIL_LINES);
       if (!result.success) throw new Error(result.stderr || t("读取日志失败"));
       setEntries(parseRemoteLogs(result.stdout));
       lastError.current = null;
@@ -34,7 +46,7 @@ export function LogsPage({ profile, onNotice }: { profile: ServerProfile; onNoti
   useEffect(() => {
     if (paused) return;
     void load();
-    const timer = window.setInterval(() => void load(), 5_000);
+    const timer = window.setInterval(() => void load(), LOG_POLL_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, [paused, load]);
 
@@ -43,6 +55,33 @@ export function LogsPage({ profile, onNotice }: { profile: ServerProfile; onNoti
       .toLowerCase()
       .includes(query.toLowerCase()),
   );
+
+  useLayoutEffect(() => {
+    const output = outputRef.current;
+    if (output && followsLatest.current) {
+      output.scrollTop = output.scrollHeight;
+    }
+  }, [entries, query]);
+
+  const togglePaused = () => {
+    if (paused) {
+      followsLatest.current = true;
+      setPaused(false);
+      window.requestAnimationFrame(() => {
+        const output = outputRef.current;
+        if (output) output.scrollTop = output.scrollHeight;
+      });
+      return;
+    }
+    setPaused(true);
+  };
+
+  const trackScrollPosition = () => {
+    const output = outputRef.current;
+    if (!output) return;
+    const remaining = output.scrollHeight - output.scrollTop - output.clientHeight;
+    followsLatest.current = remaining <= FOLLOW_THRESHOLD_PX;
+  };
 
   const exportLogs = () => {
     const blob = new Blob([entries.map((entry) => `${entry.timestamp} ${entry.message}`).join("\n")], { type: "text/plain;charset=utf-8" });
@@ -60,12 +99,12 @@ export function LogsPage({ profile, onNotice }: { profile: ServerProfile; onNoti
         <div>
           <span className="eyebrow">CONTAINER OUTPUT</span>
           <h1>{t("实时日志")}</h1>
-          <p>{t("通过 SSH 流式读取 Compose 日志，并在本地进行过滤。")}</p>
+          <p>{t("每 5 秒通过 SSH 读取最近 200 条 Compose 日志，并在本地过滤。")}</p>
         </div>
         <div className="page-header__actions">
           <button
             className={paused ? "button button--warning" : "button button--ghost"}
-            onClick={() => setPaused(!paused)}
+            onClick={togglePaused}
           >
             <CirclePause size={17} />
             {t(paused ? "继续跟随" : "暂停")}
@@ -102,7 +141,11 @@ export function LogsPage({ profile, onNotice }: { profile: ServerProfile; onNoti
             </button>
           </div>
         </div>
-        <div className="terminal-output">
+        <div
+          className="terminal-output"
+          ref={outputRef}
+          onScroll={trackScrollPosition}
+        >
           {logs.map((entry) => (
             <div className="log-line" key={entry.id}>
               <time>{formatTime(entry.timestamp, locale)}</time>

@@ -19,6 +19,7 @@ const COMPOSE_TEMPLATE: &str = include_str!("../../../../compose.yaml");
 const ENV_TEMPLATE: &str = include_str!("../../../../.env.example");
 const COMPOSE_COMMAND: &str =
     "docker compose --project-directory . --env-file ./.env -f ./compose.yaml";
+const IMPORT_BACKUP_DIRECTORY: &str = ".paldeck-import-backup";
 
 const WORLD_SETTING_DEFAULTS: &[(&str, &str)] = &[
     ("SERVER_NAME", "My Palworld Server"),
@@ -206,6 +207,69 @@ pub async fn check_connection(profile: ServerProfile) -> Result<CommandResult, S
     run_remote(&profile, "printf 'paldeck-ok'").await
 }
 
+fn import_compatibility_check() -> String {
+    let data_check = data_directory_check("\"$paldeck_dir/.env\"");
+    format!(
+        "paldeck_import_candidate=0; paldeck_import_compatible=0; \
+         paldeck_import_compose_valid=0; paldeck_import_service_compatible=0; \
+         paldeck_import_image_compatible=0; paldeck_import_volume_compatible=0; \
+         paldeck_import_backup_available=0; paldeck_import_image=''; \
+         paldeck_import_data_safe=0; paldeck_import_data_relative=''; \
+         if [ \"$paldeck_directory\" = 1 ] && [ \"$paldeck_managed\" = 0 ] && \
+            [ \"$paldeck_compose\" = 1 ] && [ \"$paldeck_env\" = 1 ] && \
+            [ ! -e \"$paldeck_dir/{marker_raw}\" ] && [ ! -L \"$paldeck_dir/{marker_raw}\" ]; then \
+           paldeck_import_candidate=1; \
+           if [ ! -e \"$paldeck_dir/{backup_raw}\" ] && [ ! -L \"$paldeck_dir/{backup_raw}\" ]; \
+           then paldeck_import_backup_available=1; fi; \
+           {data_check}; \
+           paldeck_import_data_safe=\"$paldeck_data_safe\"; \
+           paldeck_import_data_relative=\"$paldeck_data_relative\"; \
+           if cd -P -- \"$paldeck_dir\" && [ \"$PWD\" = \"$paldeck_dir\" ]; then \
+             if {compose} config --quiet >/dev/null 2>&1; then \
+               paldeck_import_compose_valid=1; \
+               paldeck_import_services=\"$({compose} config --services 2>/dev/null || true)\"; \
+               if [ \"$paldeck_import_services\" = palworld ]; then \
+                 paldeck_import_service_compatible=1; \
+               fi; \
+               paldeck_import_images=\"$({compose} config --images 2>/dev/null || true)\"; \
+               if [ \"$(printf '%s\\n' \"$paldeck_import_images\" | sed '/^$/d' | wc -l | tr -d ' ')\" = 1 ]; then \
+                 paldeck_import_image=\"$paldeck_import_images\"; \
+                 case \"$paldeck_import_image\" in \
+                   thijsvanloef/palworld-server-docker:v2.5.0|docker.io/thijsvanloef/palworld-server-docker:v2.5.0|index.docker.io/thijsvanloef/palworld-server-docker:v2.5.0) \
+                     paldeck_import_image_compatible=1 ;; \
+                 esac; \
+               fi; \
+               if [ \"$paldeck_data_safe\" = 1 ]; then \
+                 paldeck_import_config=\"$({compose} config 2>/dev/null || true)\"; \
+                 paldeck_import_source_count=\"$(printf '%s\\n' \"$paldeck_import_config\" | grep -F -c -- \"source: $paldeck_data_path\" || true)\"; \
+                 paldeck_import_target_count=\"$(printf '%s\\n' \"$paldeck_import_config\" | grep -F -c -- 'target: /palworld' || true)\"; \
+                 if [ \"$paldeck_import_source_count\" = 1 ] && [ \"$paldeck_import_target_count\" = 1 ]; then \
+                   paldeck_import_volume_compatible=1; \
+                 fi; \
+               fi; \
+             fi; \
+           fi; \
+         fi; \
+         if [ \"$paldeck_import_candidate\" = 1 ] && [ \"$paldeck_import_compose_valid\" = 1 ] && \
+            [ \"$paldeck_import_service_compatible\" = 1 ] && [ \"$paldeck_import_image_compatible\" = 1 ] && \
+            [ \"$paldeck_import_data_safe\" = 1 ] && [ \"$paldeck_import_volume_compatible\" = 1 ] && \
+            [ \"$paldeck_import_backup_available\" = 1 ]; then paldeck_import_compatible=1; fi; \
+         printf 'PALDECK_IMPORT_CANDIDATE=%s\\n' \"$paldeck_import_candidate\"; \
+         printf 'PALDECK_IMPORT_COMPATIBLE=%s\\n' \"$paldeck_import_compatible\"; \
+         printf 'PALDECK_IMPORT_COMPOSE_VALID=%s\\n' \"$paldeck_import_compose_valid\"; \
+         printf 'PALDECK_IMPORT_SERVICE_COMPATIBLE=%s\\n' \"$paldeck_import_service_compatible\"; \
+         printf 'PALDECK_IMPORT_IMAGE_COMPATIBLE=%s\\n' \"$paldeck_import_image_compatible\"; \
+         printf 'PALDECK_IMPORT_DATA_SAFE=%s\\n' \"$paldeck_import_data_safe\"; \
+         printf 'PALDECK_IMPORT_VOLUME_COMPATIBLE=%s\\n' \"$paldeck_import_volume_compatible\"; \
+         printf 'PALDECK_IMPORT_BACKUP_AVAILABLE=%s\\n' \"$paldeck_import_backup_available\"; \
+         printf 'PALDECK_IMPORT_IMAGE_B64=%s\\n' \"$(printf %s \"$paldeck_import_image\" | base64 | tr -d '\\n')\"; \
+         printf 'PALDECK_IMPORT_DATA_B64=%s\\n' \"$(printf %s \"$paldeck_import_data_relative\" | base64 | tr -d '\\n')\"",
+        marker_raw = MANAGED_MARKER_FILE,
+        backup_raw = IMPORT_BACKUP_DIRECTORY,
+        compose = COMPOSE_COMMAND,
+    )
+}
+
 #[tauri::command]
 pub async fn inspect_environment(profile: ServerProfile) -> Result<EnvironmentInspection, String> {
     validate_profile(&profile)?;
@@ -252,6 +316,7 @@ pub async fn inspect_environment(profile: ServerProfile) -> Result<EnvironmentIn
              if [ -n \"$(find \"$paldeck_dir\" -mindepth 1 -maxdepth 1 \
                ! -name {marker} ! -name compose.yaml ! -name compose.yaml.paldeck.bak \
                ! -name .env ! -name .env.paldeck.bak \
+               ! -name {import_backup} \
                ! -name \"$paldeck_data_top\" -print -quit 2>/dev/null)\" ]; \
              then printf 'PALDECK_UNEXPECTED_ENTRIES=1\\n'; else printf 'PALDECK_UNEXPECTED_ENTRIES=0\\n'; fi; \
            else printf 'PALDECK_UNEXPECTED_ENTRIES=0\\n'; fi; \
@@ -260,6 +325,7 @@ pub async fn inspect_environment(profile: ServerProfile) -> Result<EnvironmentIn
            printf 'PALDECK_DIRECTORY=0\\nPALDECK_DIRECTORY_EMPTY=0\\nPALDECK_UNEXPECTED_ENTRIES=0\\n'; \
            printf 'PALDECK_MANAGED=0\\nPALDECK_COMPOSE_FILE=0\\nPALDECK_ENV_FILE=0\\n'; \
          fi; \
+         {import_check}; \
          if [ \"$paldeck_directory\" = 1 ] && [ \"$paldeck_managed\" = 1 ] && \
             [ \"$paldeck_files_safe\" = 1 ] && [ \"$paldeck_data_safe\" = 1 ] && \
             cd -P -- \"$paldeck_dir\" && [ \"$PWD\" = \"$paldeck_dir\" ] && \
@@ -272,10 +338,12 @@ pub async fn inspect_environment(profile: ServerProfile) -> Result<EnvironmentIn
             [ -n \"$({compose} ps -q palworld 2>/dev/null)\" ]; \
          then printf 'PALDECK_RUNNING=1\\n'; else printf 'PALDECK_RUNNING=0\\n'; fi",
         marker = shell_quote(MANAGED_MARKER_FILE),
+        import_backup = shell_quote(IMPORT_BACKUP_DIRECTORY),
         marker_raw = MANAGED_MARKER_FILE,
         marker_content = shell_quote(MANAGED_MARKER_CONTENT),
         compose = COMPOSE_COMMAND,
         data_check = data_check,
+        import_check = import_compatibility_check(),
     );
     let result = run_remote(&profile, &command).await?;
     if !result.success {
@@ -301,7 +369,100 @@ pub async fn inspect_environment(profile: ServerProfile) -> Result<EnvironmentIn
         env_exists: inspection_flag(&result.stdout, "PALDECK_ENV_FILE"),
         deployment_valid: inspection_flag(&result.stdout, "PALDECK_DEPLOYMENT_VALID"),
         container_running: inspection_flag(&result.stdout, "PALDECK_RUNNING"),
+        import_candidate: inspection_flag(&result.stdout, "PALDECK_IMPORT_CANDIDATE"),
+        import_compatible: inspection_flag(&result.stdout, "PALDECK_IMPORT_COMPATIBLE"),
+        import_compose_valid: inspection_flag(&result.stdout, "PALDECK_IMPORT_COMPOSE_VALID"),
+        import_service_compatible: inspection_flag(
+            &result.stdout,
+            "PALDECK_IMPORT_SERVICE_COMPATIBLE",
+        ),
+        import_image_compatible: inspection_flag(&result.stdout, "PALDECK_IMPORT_IMAGE_COMPATIBLE"),
+        import_data_directory_safe: inspection_flag(&result.stdout, "PALDECK_IMPORT_DATA_SAFE"),
+        import_volume_compatible: inspection_flag(
+            &result.stdout,
+            "PALDECK_IMPORT_VOLUME_COMPATIBLE",
+        ),
+        import_backup_available: inspection_flag(&result.stdout, "PALDECK_IMPORT_BACKUP_AVAILABLE"),
+        import_image: inspection_base64_value(&result.stdout, "PALDECK_IMPORT_IMAGE_B64"),
+        import_data_directory: inspection_base64_value(&result.stdout, "PALDECK_IMPORT_DATA_B64")
+            .map(|value| format!("./{value}")),
     })
+}
+
+fn import_existing_deployment_script(profile: &ServerProfile) -> Result<String, String> {
+    let assignment = remote_directory_assignment(&profile.remote_path)?;
+    let compatibility_check = import_compatibility_check();
+    Ok(format!(
+        "set -eu; umask 077; {assignment}; \
+         paldeck_resolved=\"$(realpath -m -- \"$paldeck_dir\")\"; \
+         if [ \"$paldeck_resolved\" != \"$paldeck_dir\" ] || [ ! -d \"$paldeck_dir\" ] || [ -L \"$paldeck_dir\" ]; then \
+           printf '远程目录不存在、不是规范路径或经过符号链接。\\n' >&2; exit 74; \
+         fi; \
+         cd -P -- \"$paldeck_dir\"; [ \"$PWD\" = \"$paldeck_dir\" ]; \
+         if [ -e {marker} ] || [ -L {marker} ]; then \
+           printf '目录中已经存在管理标记；不会覆盖或重新导入。\\n' >&2; exit 73; \
+         fi; \
+         if [ ! -f ./compose.yaml ] || [ -L ./compose.yaml ] || [ ! -f ./.env ] || [ -L ./.env ]; then \
+           printf '导入要求普通文件 compose.yaml 和 .env，且不能是符号链接。\\n' >&2; exit 74; \
+         fi; \
+         paldeck_directory=1; paldeck_managed=0; paldeck_compose=1; paldeck_env=1; \
+         {compatibility_check}; \
+         if [ \"$paldeck_import_compatible\" != 1 ]; then \
+           printf '现有部署未通过 Paldeck 兼容性检查，未写入任何文件。\\n' >&2; exit 74; \
+         fi; \
+         cd -P -- \"$paldeck_dir\"; [ \"$PWD\" = \"$paldeck_dir\" ]; \
+         compose_digest=\"$(sha256sum -- ./compose.yaml)\"; compose_digest=\"${{compose_digest%% *}}\"; \
+         env_digest=\"$(sha256sum -- ./.env)\"; env_digest=\"${{env_digest%% *}}\"; \
+         backup_tmp=\"$(mktemp -d -p . .paldeck-import-backup.XXXXXX)\"; \
+         marker_tmp=\"$(mktemp -p . .paldeck-marker-import.XXXXXX)\"; \
+         backup_installed=0; marker_installed=0; imported=0; \
+         cleanup() {{ \
+           rm -f -- \"$marker_tmp\" 2>/dev/null || true; \
+           rm -rf -- \"$backup_tmp\" 2>/dev/null || true; \
+           if [ \"$imported\" != 1 ] && [ \"$marker_installed\" = 1 ]; then rm -f -- {marker}; fi; \
+           if [ \"$imported\" != 1 ] && [ \"$backup_installed\" = 1 ]; then rm -rf -- {backup}; fi; \
+         }}; \
+         trap cleanup EXIT HUP INT TERM; \
+         cp -p -- ./compose.yaml \"$backup_tmp/compose.yaml\"; \
+         cp -p -- ./.env \"$backup_tmp/.env\"; \
+         backup_compose_digest=\"$(sha256sum -- \"$backup_tmp/compose.yaml\")\"; backup_compose_digest=\"${{backup_compose_digest%% *}}\"; \
+         backup_env_digest=\"$(sha256sum -- \"$backup_tmp/.env\")\"; backup_env_digest=\"${{backup_env_digest%% *}}\"; \
+         current_compose_digest=\"$(sha256sum -- ./compose.yaml)\"; current_compose_digest=\"${{current_compose_digest%% *}}\"; \
+         current_env_digest=\"$(sha256sum -- ./.env)\"; current_env_digest=\"${{current_env_digest%% *}}\"; \
+         if [ \"$compose_digest\" != \"$backup_compose_digest\" ] || [ \"$compose_digest\" != \"$current_compose_digest\" ] || \
+            [ \"$env_digest\" != \"$backup_env_digest\" ] || [ \"$env_digest\" != \"$current_env_digest\" ]; then \
+           printf '部署文件在导入期间发生变化，操作已取消。\\n' >&2; exit 75; \
+         fi; \
+         printf 'PALDECK_IMPORT_BACKUP_V1\\nIMPORTED_AT_UTC=%s\\nCOMPOSE_SHA256=%s\\nENV_SHA256=%s\\n' \
+           \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\" \"$compose_digest\" \"$env_digest\" > \"$backup_tmp/MANIFEST\"; \
+         chmod 700 \"$backup_tmp\"; chmod 600 \"$backup_tmp/compose.yaml\" \"$backup_tmp/.env\" \"$backup_tmp/MANIFEST\"; \
+         printf '%s\\nCOMPOSE_SHA256=%s\\n' {marker_content} \"$compose_digest\" > \"$marker_tmp\"; \
+         chmod 600 \"$marker_tmp\"; \
+         if [ -e {backup} ] || [ -L {backup} ]; then \
+           printf '导入备份目录已存在，未覆盖。\\n' >&2; exit 73; \
+         fi; \
+         trap '' HUP INT TERM; \
+         mv -T -n -- \"$backup_tmp\" {backup}; \
+         if [ -e \"$backup_tmp\" ]; then printf '无法安全安装导入备份。\\n' >&2; exit 73; fi; \
+         backup_installed=1; \
+         if [ -e {marker} ] || [ -L {marker} ]; then \
+           printf '管理标记在导入期间被创建，操作已取消。\\n' >&2; exit 73; \
+         fi; \
+         mv -T -n -- \"$marker_tmp\" {marker}; \
+         if [ -e \"$marker_tmp\" ]; then printf '无法安全安装管理标记。\\n' >&2; exit 73; fi; \
+         marker_installed=1; imported=1; trap cleanup EXIT HUP INT TERM; \
+         printf '现有部署已导入；原始 compose.yaml 和 .env 已备份到 %s。\\n' {backup}",
+        marker = shell_quote(MANAGED_MARKER_FILE),
+        marker_content = shell_quote(MANAGED_MARKER_CONTENT),
+        backup = shell_quote(IMPORT_BACKUP_DIRECTORY),
+    ))
+}
+
+#[tauri::command]
+pub async fn import_existing_deployment(profile: ServerProfile) -> Result<CommandResult, String> {
+    validate_profile(&profile)?;
+    let script = import_existing_deployment_script(&profile)?;
+    run_remote_with_timeout(&profile, &script, Duration::from_secs(2 * 60)).await
 }
 
 #[tauri::command]
@@ -957,7 +1118,7 @@ fn save_world_script() -> String {
 
 #[tauri::command]
 pub async fn read_logs(profile: ServerProfile, tail: Option<u16>) -> Result<CommandResult, String> {
-    let lines = tail.unwrap_or(300).clamp(1, 2_000);
+    let lines = tail.unwrap_or(200).clamp(1, 2_000);
     let command = in_compose_directory(
         &profile,
         &format!("{COMPOSE_COMMAND} logs --no-color --timestamps --tail {lines} palworld"),
@@ -1301,6 +1462,15 @@ fn inspection_value(output: &str, key: &str) -> Option<String> {
         .find_map(|line| line.strip_prefix(&format!("{key}=")).map(str::to_string))
 }
 
+fn inspection_base64_value(output: &str, key: &str) -> Option<String> {
+    let encoded = inspection_value(output, key)?;
+    if encoded.is_empty() {
+        return None;
+    }
+    let decoded = BASE64_STANDARD.decode(encoded).ok()?;
+    String::from_utf8(decoded).ok()
+}
+
 fn inspection_flag(output: &str, key: &str) -> bool {
     inspection_value(output, key).as_deref() == Some("1")
 }
@@ -1389,13 +1559,14 @@ fn upsert_env_value(contents: &mut String, key: &str, value: &str) {
 #[cfg(test)]
 mod tests {
     use super::{
-        create_backup_script, dotenv_quote, env_string, inspection_flag, inspection_value,
-        parse_memory_usage, restore_backup_script, safe_lifecycle_script, save_world_script,
-        server_snapshot_script, set_env_value, upgrade_compose_script, validate_backup_filename,
-        validate_backup_settings, validate_data_directory, validate_player_message,
-        validate_world_settings, COMPOSE_TEMPLATE, ENV_TEMPLATE, WORLD_SETTING_DEFAULTS,
+        create_backup_script, dotenv_quote, env_string, import_existing_deployment_script,
+        inspection_flag, inspection_value, parse_memory_usage, restore_backup_script,
+        safe_lifecycle_script, save_world_script, server_snapshot_script, set_env_value,
+        upgrade_compose_script, validate_backup_filename, validate_backup_settings,
+        validate_data_directory, validate_player_message, validate_world_settings,
+        COMPOSE_TEMPLATE, ENV_TEMPLATE, WORLD_SETTING_DEFAULTS,
     };
-    use crate::models::{BackupSettings, WorldSettingsInput};
+    use crate::models::{Authentication, BackupSettings, ServerProfile, WorldSettingsInput};
 
     #[test]
     fn parses_environment_inspection() {
@@ -1522,6 +1693,14 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn server_snapshot_command_has_valid_shell_syntax() {
+        let import_script = import_existing_deployment_script(&ServerProfile {
+            auth: Authentication::OpenSsh {
+                host: "palworld-server".into(),
+                username: "admin".into(),
+            },
+            remote_path: "~/.palworld".into(),
+        })
+        .unwrap();
         for script in [
             server_snapshot_script(),
             save_world_script(),
@@ -1530,6 +1709,7 @@ mod tests {
             restore_backup_script("palworld-save-2026-08-16_03-00-00.tar.gz"),
             safe_lifecycle_script("restart", "Restarting soon", 10).unwrap(),
             safe_lifecycle_script("stop", "Stopping soon", 10).unwrap(),
+            import_script,
         ] {
             let status = std::process::Command::new("sh")
                 .args(["-n", "-c", &script])
@@ -1537,6 +1717,25 @@ mod tests {
                 .unwrap();
             assert!(status.success());
         }
+    }
+
+    #[test]
+    fn import_preserves_existing_files_and_creates_a_protected_backup() {
+        let script = import_existing_deployment_script(&ServerProfile {
+            auth: Authentication::OpenSsh {
+                host: "palworld-server".into(),
+                username: "admin".into(),
+            },
+            remote_path: "~/.palworld".into(),
+        })
+        .unwrap();
+        assert!(script.contains("cp -p -- ./compose.yaml"));
+        assert!(script.contains("cp -p -- ./.env"));
+        assert!(script.contains("PALDECK_IMPORT_BACKUP_V1"));
+        assert!(script.contains("PALDECK_MANAGED_DIRECTORY_V1"));
+        assert!(script.contains("mv -T -n -- \"$marker_tmp\" '.paldeck-managed'"));
+        assert!(!script.contains("rm -f -- ./compose.yaml"));
+        assert!(!script.contains("rm -f -- ./.env"));
     }
 
     #[test]

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import {
+  importExistingDeployment,
   initializeRemoteServer,
   inspectEnvironment,
   probeConnection,
@@ -63,6 +64,7 @@ export function SetupWizard({
   const [trust, setTrust] = useState<ConnectionProbe | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [importConfirmed, setImportConfirmed] = useState(false);
 
   const checkConnectionAndEnvironment = async (candidate: ServerProfile) => {
     setBusy(true);
@@ -81,7 +83,35 @@ export function SetupWizard({
       const environment = await inspectEnvironment(candidate);
       setProfile(candidate);
       setInspection(environment);
+      setImportConfirmed(false);
       setStep("environment");
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const importDeployment = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await importExistingDeployment(profile);
+      const refreshed = await inspectEnvironment(profile);
+      setInspection(refreshed);
+      if (
+        !result.success ||
+        !refreshed.managedDirectory ||
+        !refreshed.deploymentValid
+      ) {
+        setError(
+          errorMessage(
+            result.stderr || t("导入完成后未能验证受管部署，请检查远程目录。"),
+          ),
+        );
+        return;
+      }
+      setStep("complete");
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -150,6 +180,7 @@ export function SetupWizard({
     inspection?.pathSafe &&
       (!inspection.directoryExists || inspection.directoryEmpty),
   );
+  const canImport = Boolean(inspection?.importCandidate && inspection.importCompatible);
 
   return (
     <div className="setup-screen">
@@ -292,6 +323,8 @@ export function SetupWizard({
                       ? t("路径不安全")
                       : inspection.managedDirectory
                         ? t("由 Paldeck 管理")
+                        : inspection.importCompatible
+                          ? t("可安全导入")
                         : inspection.directoryExists
                           ? inspection.directoryEmpty
                             ? t("已存在且为空")
@@ -301,6 +334,7 @@ export function SetupWizard({
                   ok={Boolean(
                     inspection.pathSafe &&
                       (inspection.managedDirectory ||
+                        inspection.importCompatible ||
                         !inspection.directoryExists ||
                         inspection.directoryEmpty),
                   )}
@@ -337,7 +371,8 @@ export function SetupWizard({
 
               {inspection.directoryExists &&
                 !inspection.directoryEmpty &&
-                !inspection.managedDirectory && (
+                !inspection.managedDirectory &&
+                !inspection.importCandidate && (
                   <div className="setup-callout setup-callout--warning">
                     <CircleAlert size={20} />
                     <div>
@@ -350,6 +385,110 @@ export function SetupWizard({
                     </div>
                   </div>
                 )}
+
+              {inspection.importCandidate && !inspection.managedDirectory && (
+                <>
+                  <div
+                    className={
+                      inspection.importCompatible
+                        ? "setup-callout setup-callout--success"
+                        : "setup-callout setup-callout--warning"
+                    }
+                  >
+                    {inspection.importCompatible ? (
+                      <CheckCircle2 size={20} />
+                    ) : (
+                      <CircleAlert size={20} />
+                    )}
+                    <div>
+                      <strong>
+                        {t(
+                          inspection.importCompatible
+                            ? "发现可导入的现有部署"
+                            : "现有部署暂时无法导入",
+                        )}
+                      </strong>
+                      <p>
+                        {t(
+                          inspection.importCompatible
+                            ? "Paldeck 将保留现有 Compose、环境配置、容器和存档，先创建受保护的配置备份，再写入管理标记。"
+                            : "至少一项兼容性检查未通过。Paldeck 不会修改、移动或删除现有文件。",
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="check-grid">
+                    <CheckItem
+                      label={t("Compose 配置")}
+                      value={t(inspection.importComposeValid ? "有效" : "无效")}
+                      ok={inspection.importComposeValid}
+                    />
+                    <CheckItem
+                      label={t("Compose 服务")}
+                      value={t(
+                        inspection.importServiceCompatible
+                          ? "仅包含 palworld"
+                          : "必须仅包含 palworld",
+                      )}
+                      ok={inspection.importServiceCompatible}
+                    />
+                    <CheckItem
+                      label={t("容器镜像")}
+                      value={
+                        inspection.importImage ?? t("无法识别或版本不受支持")
+                      }
+                      ok={inspection.importImageCompatible}
+                    />
+                    <CheckItem
+                      label={t("数据目录")}
+                      value={
+                        inspection.importDataDirectory ?? t("路径无效或缺失")
+                      }
+                      ok={inspection.importDataDirectorySafe}
+                    />
+                    <CheckItem
+                      label={t("数据卷映射")}
+                      value={t(
+                        inspection.importVolumeCompatible
+                          ? "安全映射到 /palworld"
+                          : "未匹配安全数据目录",
+                      )}
+                      ok={inspection.importVolumeCompatible}
+                    />
+                    <CheckItem
+                      label={t("导入备份")}
+                      value={t(
+                        inspection.importBackupAvailable
+                          ? "将创建 .paldeck-import-backup"
+                          : "备份目录已存在，拒绝覆盖",
+                      )}
+                      ok={inspection.importBackupAvailable}
+                    />
+                  </div>
+
+                  {inspection.importCompatible && (
+                    <label className="setup-checkbox setup-checkbox--confirmation">
+                      <input
+                        type="checkbox"
+                        checked={importConfirmed}
+                        onChange={(event) =>
+                          setImportConfirmed(event.target.checked)
+                        }
+                        disabled={busy}
+                      />
+                      <span>
+                        <strong>{t("我确认让 Paldeck 管理这个现有部署")}</strong>
+                        <small>
+                          {t(
+                            "导入不会停止或重建容器，也不会改写 compose.yaml、.env、游戏存档或目录中的其他文件。",
+                          )}
+                        </small>
+                      </span>
+                    </label>
+                  )}
+                </>
+              )}
 
               {inspection.managedDirectory && inspection.unexpectedEntries && (
                 <div className="setup-callout setup-callout--warning">
@@ -568,6 +707,7 @@ export function SetupWizard({
                 onClick={() => {
                   setStep("connection");
                   setError(null);
+                  setImportConfirmed(false);
                 }}
                 disabled={busy}
               >
@@ -603,6 +743,22 @@ export function SetupWizard({
                 {t(busy ? "正在连接…" : "连接并检查")}
               </button>
             )}
+            {step === "environment" &&
+              canImport &&
+              environmentReady && (
+                <button
+                  className="button button--primary"
+                  onClick={() => void importDeployment()}
+                  disabled={busy || !importConfirmed}
+                >
+                  {busy ? (
+                    <LoaderCircle className="spin" size={17} />
+                  ) : (
+                    <FolderCog size={17} />
+                  )}
+                  {t(busy ? "正在导入…" : "导入现有部署")}
+                </button>
+              )}
             {step === "environment" &&
               existingDeployment &&
               environmentReady && (

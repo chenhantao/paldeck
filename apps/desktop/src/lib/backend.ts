@@ -66,9 +66,29 @@ export async function inspectEnvironment(
       envExists: false,
       deploymentValid: false,
       containerRunning: false,
+      importCandidate: false,
+      importCompatible: false,
+      importComposeValid: false,
+      importServiceCompatible: false,
+      importImageCompatible: false,
+      importDataDirectorySafe: false,
+      importVolumeCompatible: false,
+      importBackupAvailable: false,
     };
   }
   return invoke<EnvironmentInspection>("inspect_environment", { profile });
+}
+
+export async function importExistingDeployment(
+  profile: ServerProfile,
+): Promise<CommandResult> {
+  if (!isDesktopRuntime()) {
+    return {
+      ...previewResult,
+      stdout: "Preview：现有部署导入已模拟完成",
+    };
+  }
+  return invoke<CommandResult>("import_existing_deployment", { profile });
 }
 
 export async function initializeRemoteServer(
@@ -102,7 +122,7 @@ export async function runServerAction(
 
 export async function fetchRemoteLogs(
   profile: ServerProfile,
-  tail = 300,
+  tail = 200,
 ): Promise<CommandResult> {
   if (!isDesktopRuntime()) return previewResult;
   return invoke<CommandResult>("read_logs", { profile, tail });

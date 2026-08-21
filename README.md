@@ -7,27 +7,27 @@ Palworld dedicated servers. The server runs with Docker Compose, while the
 desktop client performs allowlisted management operations over SSH.
 
 > [!IMPORTANT]
-> Paldeck is still in early development. Its desktop pages now use the real
-> remote Compose, Docker, Palworld REST API, log, backup, and `.env` data.
-> Backup download and historical player statistics are not yet
-> available and are not presented as working controls.
+> Paldeck is in early development. Its desktop pages use remote Compose,
+> Docker, Palworld REST API, log, backup, and `.env` data. Backup download and
+> historical player statistics are unavailable, so the interface does not
+> provide controls for them.
 
 ## Features
 
 - Deploy a Palworld dedicated server with Docker Compose
 - Configure common server, network, backup, and world options through `.env`
 - Manage servers from a cross-platform Tauri 2, React, and Rust desktop client
-- Use a larger cross-platform type scale, plus Windows-optimized fonts and a fluid Windows layout that expands on wide or maximized windows
+- Use a readable cross-platform type scale, plus Windows-optimized fonts and a fluid Windows layout for wide or maximized windows
 - Save multiple server profiles and add, switch, edit, or locally remove them (Beta)
 - Use the desktop interface in English or Simplified Chinese, or follow the system language
 - Inspect Linux, amd64, Docker, and Compose during first-time setup
 - Connect as an explicit `username@host` with the system OpenSSH configuration and keys, or use username-and-password login
-- Reopen deployments carrying a Paldeck management marker, or safely create a new one
+- Reopen Paldeck-managed deployments, explicitly import compatible existing deployments, or safely create a new one
 - Validate remote paths and Compose operations against strict allowlists
 - Store deployment files in `~/.palworld` for the remote account by default
 - Bind the Palworld REST API to the server loopback interface by default
 - Read real container CPU/memory, Palworld FPS, uptime, world-day, and player data
-- Poll real Compose logs; configure automatic backup schedules and retention (Beta);
+- Poll the latest 200 Compose log lines every 5 seconds and follow new output while the view remains near the bottom; configure automatic backup schedules and retention (Beta);
   create, verify, list, delete, and transactionally restore backups; and edit
   all 79 allowlisted world settings supported by the pinned container version
 - Broadcast messages and kick or ban online players through the container REST client
@@ -110,16 +110,23 @@ On first launch, the desktop client opens the setup wizard:
    first connection.
 3. Inspect the remote system, architecture, Docker permissions, and Compose
    plugin.
-4. Reopen a valid Paldeck-managed deployment, or initialize a directory that
-   does not exist or is completely empty.
-5. Choose a safe data subdirectory, write the management marker, generate
-   `.env`, validate the Compose files, and optionally start the server.
+4. Reopen a valid Paldeck-managed deployment, explicitly import a compatible
+   existing deployment, or initialize a directory that does not exist or is
+   completely empty.
+5. For an import, review the Compose, `palworld` service, pinned v2.5.0 image,
+   data-directory, and `/palworld` volume checks. After explicit confirmation,
+   Paldeck backs up the original `compose.yaml` and `.env` in
+   `.paldeck-import-backup` before adding its marker. It does not stop or
+   recreate the existing container.
+6. For a new deployment, choose a safe data subdirectory, write the management
+   marker, generate `.env`, validate the Compose files, and optionally start
+   the server.
 
 The language selector is available in the setup wizard, the sidebar, and the
 world-settings page. The preference is stored locally; **System default** uses
 Simplified Chinese for Chinese system locales and English for other locales.
 
-Username-and-password login still uses the SSH protocol. The password remains
+Username-and-password login uses the SSH protocol. The password remains
 only in the current application session and is never written to browser
 storage or local configuration. The public server host key and other
 non-sensitive connection details may be persisted.
@@ -153,7 +160,7 @@ Windows, macOS, and Linux runners. When the workflow completes, open
 
 Development artifacts are retained for 14 days and do not create a GitHub
 Release. The Windows portable preview packages the plain Tauri executable; the
-target computer still needs Microsoft Edge WebView2 Runtime, and Tauri does
+target computer requires Microsoft Edge WebView2 Runtime, and Tauri does
 not guarantee a fully portable mode. None of the development packages are
 signed with a trusted Developer ID. The macOS package receives a complete
 ad-hoc signature and is verified before upload, but it is not notarized by
@@ -197,8 +204,13 @@ notarized; the Windows and Linux packages remain unsigned.
 - SSH uses batch mode where applicable and enforces connection and operation
   timeouts.
 - Initialization writes `.paldeck-managed` only after validation succeeds and
-  records the SHA-256 digest of the installed Compose template.
-  A non-empty directory without that marker is refused and left untouched.
+  records the SHA-256 digest of the installed Compose template. A non-empty
+  unmarked directory is never initialized automatically. It can be imported
+  only through the explicit compatibility-and-confirmation flow; the flow
+  preserves unrelated files, copies the original `compose.yaml` and `.env` to
+  a mode-restricted `.paldeck-import-backup`, verifies that neither source
+  changed during backup, and only then records the existing Compose digest in
+  the marker.
 - Remote paths reject traversal and non-canonical forms. The custom data path
   must start with `./`, remain below the deployment directory, use a restricted
   character set, and must not traverse symbolic links.

@@ -53,6 +53,16 @@ export interface EnvironmentInspection {
   envExists: boolean;
   deploymentValid: boolean;
   containerRunning: boolean;
+  importCandidate: boolean;
+  importCompatible: boolean;
+  importComposeValid: boolean;
+  importServiceCompatible: boolean;
+  importImageCompatible: boolean;
+  importDataDirectorySafe: boolean;
+  importVolumeCompatible: boolean;
+  importBackupAvailable: boolean;
+  importImage?: string;
+  importDataDirectory?: string;
 }
 
 export interface InitializationOptions {

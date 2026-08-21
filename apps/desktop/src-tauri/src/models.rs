@@ -115,6 +115,16 @@ pub struct EnvironmentInspection {
     pub env_exists: bool,
     pub deployment_valid: bool,
     pub container_running: bool,
+    pub import_candidate: bool,
+    pub import_compatible: bool,
+    pub import_compose_valid: bool,
+    pub import_service_compatible: bool,
+    pub import_image_compatible: bool,
+    pub import_data_directory_safe: bool,
+    pub import_volume_compatible: bool,
+    pub import_backup_available: bool,
+    pub import_image: Option<String>,
+    pub import_data_directory: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
