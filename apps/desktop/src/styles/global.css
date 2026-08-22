@@ -1452,6 +1452,14 @@ select:focus-visible {
   margin-top: 8px;
 }
 
+.settings-nav > .language-select > span {
+  display: none;
+}
+
+.settings-nav > .language-select select {
+  width: 100%;
+}
+
 .settings-content {
   display: flex;
   flex-direction: column;
