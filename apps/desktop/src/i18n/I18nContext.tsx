@@ -90,6 +90,8 @@ const backendEnglishReplacements: Array<[string, string]> = [
   ["登录方式不是 OpenSSH", "The authentication method is not OpenSSH"],
   ["登录方式不是账号密码", "The authentication method is not username and password"],
   ["SSH 用户名无效", "The SSH username is invalid"],
+  ["请输入 SSH 私钥口令", "Enter the SSH private-key passphrase"],
+  ["SSH 私钥口令无效", "The SSH private-key passphrase is invalid"],
   ["SSH 密码无效", "The SSH password is invalid"],
   ["SSH 后台任务失败", "The SSH background task failed"],
   ["SSH 命令通道关闭失败", "Failed to close the SSH command channel"],

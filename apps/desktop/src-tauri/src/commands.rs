@@ -1697,6 +1697,8 @@ mod tests {
             auth: Authentication::OpenSsh {
                 host: "palworld-server".into(),
                 username: "admin".into(),
+                requires_passphrase: false,
+                passphrase: String::new(),
             },
             remote_path: "~/.palworld".into(),
         })
@@ -1725,6 +1727,8 @@ mod tests {
             auth: Authentication::OpenSsh {
                 host: "palworld-server".into(),
                 username: "admin".into(),
+                requires_passphrase: false,
+                passphrase: String::new(),
             },
             remote_path: "~/.palworld".into(),
         })

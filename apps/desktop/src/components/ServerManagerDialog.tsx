@@ -52,7 +52,7 @@ export function ServerManagerDialog({
         </header>
 
         <div className="server-manager__intro">
-          <p>{t("Beta：保存多个服务器连接并快速切换。登录密码始终只保留在当前会话；建议先保留原连接信息。")}</p>
+          <p>{t("Beta：保存多个服务器连接并快速切换。登录密码和私钥口令始终只保留在当前会话；建议先保留原连接信息。")}</p>
           <button className="button button--primary" onClick={onAdd}>
             <Plus size={17} />
             {t("添加服务器")}

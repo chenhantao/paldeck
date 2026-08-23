@@ -9,6 +9,8 @@ export function createDefaultProfile(name = "我的帕鲁服务器"): ServerProf
       kind: "openssh",
       host: "",
       username: "",
+      requiresPassphrase: false,
+      passphrase: "",
     },
     remotePath: "~/.palworld",
   };
@@ -24,5 +26,6 @@ export function profileAddress(profile: ServerProfile, emptyLabel = "尚未配�
 }
 
 export function profileNeedsPassword(profile: ServerProfile): boolean {
-  return profile.auth.kind === "password" && !profile.auth.password;
+  if (profile.auth.kind === "password") return !profile.auth.password;
+  return profile.auth.requiresPassphrase && !profile.auth.passphrase;
 }

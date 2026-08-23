@@ -21,6 +21,32 @@ html[data-platform="windows"] .page {
   padding: clamp(36px, 3vw, 58px) 0 64px;
 }
 
+html[data-platform="windows"] .setup-screen {
+  height: 100%;
+  place-items: stretch;
+  padding: clamp(20px, 2.5vw, 48px);
+}
+
+html[data-platform="windows"] .setup-panel {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+
+html[data-platform="windows"] .setup-header,
+html[data-platform="windows"] .setup-footer {
+  padding-right: clamp(24px, 3vw, 64px);
+  padding-left: clamp(24px, 3vw, 64px);
+}
+
+html[data-platform="windows"] .setup-content {
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: clamp(30px, 3vw, 54px) clamp(32px, 4vw, 72px);
+  overflow: auto;
+}
+
 html[data-platform="windows"] .brand strong {
   font-size: 20px;
 }
@@ -223,6 +249,14 @@ html[data-platform="windows"] .metric-card {
     width: calc(100% - 32px);
     padding-top: 28px;
   }
+
+  html[data-platform="windows"] .setup-screen {
+    padding: 16px;
+  }
+
+  html[data-platform="windows"] .setup-content {
+    padding: 26px 24px;
+  }
 }
 
 @media (max-width: 760px) {
@@ -237,5 +271,19 @@ html[data-platform="windows"] .metric-card {
 
   html[data-platform="windows"] .setup-step {
     font-size: 0;
+  }
+
+  html[data-platform="windows"] .setup-screen {
+    padding: 8px;
+  }
+
+  html[data-platform="windows"] .setup-header,
+  html[data-platform="windows"] .setup-footer {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  html[data-platform="windows"] .setup-content {
+    padding: 22px 16px;
   }
 }

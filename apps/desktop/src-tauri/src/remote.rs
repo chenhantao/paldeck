@@ -9,10 +9,13 @@ use ssh2::Session;
 use tokio::process::Command;
 use tokio::time::timeout;
 
+use crate::askpass::{MODE_ENV as ASKPASS_MODE_ENV, SECRET_ENV as ASKPASS_SECRET_ENV};
 use crate::models::{Authentication, CommandResult, ConnectionProbe, ServerProfile};
 
 const SSH_TIMEOUT: Duration = Duration::from_secs(30);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 pub const MANAGED_MARKER_FILE: &str = ".paldeck-managed";
 pub const MANAGED_MARKER_CONTENT: &str = "PALDECK_MANAGED_DIRECTORY_V1";
 const COMPOSE_TEMPLATE: &str = include_str!("../../../../compose.yaml");
@@ -24,9 +27,18 @@ pub fn validate_profile(profile: &ServerProfile) -> Result<(), String> {
 
 fn validate_authentication(authentication: &Authentication) -> Result<(), String> {
     match authentication {
-        Authentication::OpenSsh { host, username } => {
+        Authentication::OpenSsh {
+            host,
+            username,
+            requires_passphrase,
+            passphrase,
+        } => {
             validate_ssh_host(host)?;
-            validate_ssh_username(username)
+            validate_ssh_username(username)?;
+            if *requires_passphrase && passphrase.is_empty() {
+                return Err("请输入 SSH 私钥口令".into());
+            }
+            validate_secret(passphrase, "SSH 私钥口令无效")
         }
         Authentication::Password {
             host,
@@ -40,12 +52,16 @@ fn validate_authentication(authentication: &Authentication) -> Result<(), String
                 return Err("SSH 端口必须在 1 到 65535 之间".into());
             }
             validate_ssh_username(username)?;
-            if password.len() > 4_096 || password.contains('\0') {
-                return Err("SSH 密码无效".into());
-            }
-            Ok(())
+            validate_secret(password, "SSH 密码无效")
         }
     }
+}
+
+fn validate_secret(secret: &str, message: &str) -> Result<(), String> {
+    if secret.len() > 4_096 || secret.contains(['\0', '\n', '\r']) {
+        return Err(message.into());
+    }
+    Ok(())
 }
 
 fn validate_ssh_username(username: &str) -> Result<(), String> {
@@ -247,20 +263,56 @@ async fn run_openssh(
     remote_command: &str,
     operation_timeout: Duration,
 ) -> Result<CommandResult, String> {
-    let Authentication::OpenSsh { host, username } = &profile.auth else {
+    let Authentication::OpenSsh {
+        host,
+        username,
+        requires_passphrase,
+        passphrase,
+    } = &profile.auth
+    else {
         return Err("登录方式不是 OpenSSH".into());
     };
     let target = openssh_target(username, host);
 
-    let child = Command::new("ssh")
-        .args([
-            "-o",
-            "BatchMode=yes",
-            "-o",
-            "ConnectTimeout=8",
-            &target,
-            remote_command,
-        ])
+    let mut command = Command::new("ssh");
+    #[cfg(windows)]
+    command.creation_flags(CREATE_NO_WINDOW);
+    command.args([
+        "-o",
+        "ConnectTimeout=8",
+        "-o",
+        "PreferredAuthentications=publickey",
+        "-o",
+        "PasswordAuthentication=no",
+        "-o",
+        "KbdInteractiveAuthentication=no",
+        "-o",
+        "SendEnv=-PALDECK_INTERNAL_SSH_PASSPHRASE",
+    ]);
+    if !*requires_passphrase {
+        command.args(["-o", "BatchMode=yes"]);
+    } else {
+        let askpass = std::env::current_exe()
+            .map_err(|error| format!("无法准备 SSH 私钥口令输入：{error}"))?;
+        command
+            .args([
+                "-o",
+                "BatchMode=no",
+                "-o",
+                "StrictHostKeyChecking=yes",
+                "-o",
+                "NumberOfPasswordPrompts=1",
+            ])
+            .env("SSH_ASKPASS", askpass)
+            .env("SSH_ASKPASS_REQUIRE", "force")
+            .env(ASKPASS_MODE_ENV, "1")
+            .env(ASKPASS_SECRET_ENV, passphrase);
+        if std::env::var_os("DISPLAY").is_none() {
+            command.env("DISPLAY", "paldeck-askpass");
+        }
+    }
+    let child = command
+        .args([&target, remote_command])
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -477,6 +529,8 @@ mod tests {
             auth: Authentication::OpenSsh {
                 host: host.into(),
                 username: username.into(),
+                requires_passphrase: false,
+                passphrase: String::new(),
             },
             remote_path: path.into(),
         }
@@ -499,6 +553,33 @@ mod tests {
     fn validates_safe_profile() {
         assert!(
             validate_profile(&openssh_profile("admin", "palworld-server", "~/.palworld")).is_ok()
+        );
+    }
+
+    #[test]
+    fn rejects_multiline_private_key_passphrases() {
+        let mut profile = openssh_profile("admin", "palworld-server", "~/.palworld");
+        let Authentication::OpenSsh { passphrase, .. } = &mut profile.auth else {
+            unreachable!();
+        };
+        *passphrase = "line one\nline two".into();
+        assert!(validate_profile(&profile).is_err());
+    }
+
+    #[test]
+    fn requires_selected_private_key_passphrase() {
+        let mut profile = openssh_profile("admin", "palworld-server", "~/.palworld");
+        let Authentication::OpenSsh {
+            requires_passphrase,
+            ..
+        } = &mut profile.auth
+        else {
+            unreachable!();
+        };
+        *requires_passphrase = true;
+        assert_eq!(
+            validate_profile(&profile).unwrap_err(),
+            "请输入 SSH 私钥口令"
         );
     }
 

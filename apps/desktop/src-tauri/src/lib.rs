@@ -1,3 +1,4 @@
+mod askpass;
 mod commands;
 mod models;
 mod remote;
@@ -9,6 +10,10 @@ use commands::{
     read_world_settings, restore_backup, safe_lifecycle_action, server_action, server_snapshot,
     write_backup_settings, write_env, write_world_settings,
 };
+
+pub fn serve_ssh_askpass() -> bool {
+    askpass::serve_if_requested()
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

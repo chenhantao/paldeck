@@ -15,6 +15,7 @@ export function ConnectionFields({
   disabled = false,
 }: ConnectionFieldsProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [showPassphrase, setShowPassphrase] = useState(false);
   const auth = profile.auth;
   const { t } = useI18n();
 
@@ -31,7 +32,13 @@ export function ConnectionFields({
           onClick={() =>
             onChange({
               ...profile,
-              auth: { kind: "openssh", host: "", username: "" },
+              auth: {
+                kind: "openssh",
+                host: "",
+                username: "",
+                requiresPassphrase: false,
+                passphrase: "",
+              },
             })
           }
           disabled={disabled}
@@ -121,6 +128,61 @@ export function ConnectionFields({
                 )}
               </small>
             </label>
+            <label className="setup-checkbox field--wide">
+              <input
+                type="checkbox"
+                checked={auth.requiresPassphrase}
+                onChange={(event) =>
+                  onChange({
+                    ...profile,
+                    auth: {
+                      ...auth,
+                      requiresPassphrase: event.target.checked,
+                      passphrase: event.target.checked ? auth.passphrase : "",
+                    },
+                  })
+                }
+                disabled={disabled}
+              />
+              <span>
+                <strong>{t("私钥需要口令")}</strong>
+                <small>{t("ssh-agent 已提供解锁密钥时无需启用。")}</small>
+              </span>
+            </label>
+            {auth.requiresPassphrase ? (
+              <label className="field field--wide">
+                <span>{t("私钥口令")}</span>
+                <div className="password-field">
+                  <input
+                    type={showPassphrase ? "text" : "password"}
+                    value={auth.passphrase}
+                    onChange={(event) =>
+                      onChange({
+                        ...profile,
+                        auth: {
+                          ...auth,
+                          passphrase: event.target.value,
+                        },
+                      })
+                    }
+                    placeholder={t("仅保存在当前运行会话")}
+                    autoComplete="off"
+                    disabled={disabled}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassphrase((visible) => !visible)}
+                    aria-label={t(showPassphrase ? "隐藏密钥口令" : "显示密钥口令")}
+                    disabled={disabled}
+                  >
+                    {showPassphrase ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <small className="field__hint">
+                  {t("私钥口令不会写入本地配置或日志。")}
+                </small>
+              </label>
+            ) : null}
           </>
         ) : (
           <>

@@ -665,7 +665,7 @@ export function SetupWizard({
                 <h1>{t("Paldeck 已准备完成")}</h1>
                 <p>
                   {t(
-                    "连接信息已经保存。账号密码仅保留在当前会话，重新打开应用时需要再次输入。",
+                    "连接信息已经保存。登录密码和私钥口令仅保留在当前会话，重新打开应用时需要再次输入。",
                   )}
                 </p>
               </div>
@@ -689,7 +689,7 @@ export function SetupWizard({
         <footer className="setup-footer">
           <div className="setup-security">
             <ShieldCheck size={16} />
-            {t("登录密码不会写入磁盘")}
+            {t("登录密码和私钥口令不会写入磁盘")}
           </div>
           <div className="setup-actions">
             {onCancel && step !== "complete" && (
@@ -854,7 +854,11 @@ function isEnvironmentReady(
 function isConnectionComplete(profile: ServerProfile): boolean {
   if (!profile.name.trim() || !profile.remotePath.trim()) return false;
   if (profile.auth.kind === "openssh") {
-    return Boolean(profile.auth.host.trim() && profile.auth.username.trim());
+    return Boolean(
+      profile.auth.host.trim() &&
+        profile.auth.username.trim() &&
+        (!profile.auth.requiresPassphrase || profile.auth.passphrase),
+    );
   }
   return Boolean(
     profile.auth.host.trim() &&

@@ -17,7 +17,14 @@ pub struct ServerProfile {
 )]
 pub enum Authentication {
     #[serde(rename = "openssh")]
-    OpenSsh { host: String, username: String },
+    OpenSsh {
+        host: String,
+        username: String,
+        #[serde(default)]
+        requires_passphrase: bool,
+        #[serde(default)]
+        passphrase: String,
+    },
     Password {
         host: String,
         port: u16,
@@ -37,15 +44,32 @@ mod tests {
             "auth": {
                 "kind": "openssh",
                 "host": "palworld-server",
-                "username": "steam"
+                "username": "steam",
+                "requiresPassphrase": true,
+                "passphrase": "secret"
             },
             "remotePath": "~/.palworld"
         }))
         .expect("OpenSSH profile should deserialize");
         assert!(matches!(
             openssh.auth,
-            Authentication::OpenSsh { host, username }
-                if host == "palworld-server" && username == "steam"
+            Authentication::OpenSsh { host, username, requires_passphrase, passphrase }
+                if host == "palworld-server" && username == "steam" && requires_passphrase && passphrase == "secret"
+        ));
+
+        let openssh_without_passphrase: ServerProfile = serde_json::from_value(serde_json::json!({
+            "auth": {
+                "kind": "openssh",
+                "host": "palworld-server",
+                "username": "steam"
+            },
+            "remotePath": "~/.palworld"
+        }))
+        .expect("legacy OpenSSH profile should deserialize");
+        assert!(matches!(
+            openssh_without_passphrase.auth,
+            Authentication::OpenSsh { requires_passphrase, passphrase, .. }
+                if !requires_passphrase && passphrase.is_empty()
         ));
 
         let password: ServerProfile = serde_json::from_value(serde_json::json!({

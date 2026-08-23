@@ -17,7 +17,8 @@ desktop client performs allowlisted management operations over SSH.
 - Deploy a Palworld dedicated server with Docker Compose
 - Configure common server, network, backup, and world options through `.env`
 - Manage servers from a cross-platform Tauri 2, React, and Rust desktop client
-- Use a readable cross-platform type scale, plus Windows-optimized fonts and a fluid Windows layout for wide or maximized windows
+- Use a readable cross-platform type scale, plus Windows-optimized fonts and fluid dashboard and setup layouts for wide or maximized windows
+- Keep Windows OpenSSH operations in the background without flashing a console window
 - Save multiple server profiles and add, switch, edit, or locally remove them (Beta)
 - Use the desktop interface in English or Simplified Chinese, or follow the system language
 - Inspect Linux, amd64, Docker, and Compose during first-time setup
@@ -104,8 +105,9 @@ connections.
 On first launch, the desktop client opens the setup wizard:
 
 1. For OpenSSH/key authentication, enter the username and host; Paldeck invokes
-   the system SSH client with `username@host`. Alternatively, use direct
-   username-and-password login.
+   the system SSH client with `username@host`. An optional in-memory passphrase
+   unlocks an encrypted private key when `ssh-agent` does not already provide
+   it. Alternatively, use direct username-and-password login.
 2. For password login, verify the server's SHA256 host-key fingerprint on the
    first connection.
 3. Inspect the remote system, architecture, Docker permissions, and Compose
@@ -126,10 +128,10 @@ The language selector is available in the setup wizard, the sidebar, and the
 world-settings page. The preference is stored locally; **System default** uses
 Simplified Chinese for Chinese system locales and English for other locales.
 
-Username-and-password login uses the SSH protocol. The password remains
-only in the current application session and is never written to browser
-storage or local configuration. The public server host key and other
-non-sensitive connection details may be persisted.
+Username-and-password login uses the SSH protocol. Login passwords and
+private-key passphrases remain only in the current application session and are
+never written to browser storage or local configuration. The public server
+host key and other non-sensitive connection details may be persisted.
 
 The server selector in the sidebar manages multiple saved connections. An
 existing single-server profile is migrated automatically. Removing a profile
@@ -193,16 +195,17 @@ notarized; the Windows and Linux packages remain unsigned.
 
 ## Security boundaries
 
-- Never commit `.env`, SSH private keys, server addresses, passwords, or real
-  game saves.
+- Never commit `.env`, SSH private keys, server addresses, passwords,
+  private-key passphrases, or real game saves.
 - The Rust layer validates SSH hosts, password-login parameters, and remote
   paths.
 - Password login pins the server public host key after first confirmation and
   rejects later key changes.
 - Compose and server operations use fixed allowlists and do not expose an
   arbitrary remote command interface.
-- SSH uses batch mode where applicable and enforces connection and operation
-  timeouts.
+- SSH uses batch mode when no private-key passphrase is supplied. Encrypted-key
+  connections use the packaged askpass entry point, disable remote password
+  authentication, and enforce connection and operation timeouts.
 - Initialization writes `.paldeck-managed` only after validation succeeds and
   records the SHA-256 digest of the installed Compose template. A non-empty
   unmarked directory is never initialized automatically. It can be imported

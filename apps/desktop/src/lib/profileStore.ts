@@ -10,6 +10,7 @@ interface StoredAuthentication {
   port?: number;
   username?: string;
   password?: string;
+  requiresPassphrase?: boolean;
   trustedHostKey?: string;
   sshHost?: string;
 }
@@ -134,11 +135,21 @@ function normalizeAuthentication(stored: StoredProfile): ServerProfile["auth"] {
     kind: "openssh",
     host: auth?.host ?? legacyHost,
     username: auth?.username ?? legacyUsername,
+    requiresPassphrase: auth?.requiresPassphrase ?? false,
+    passphrase: "",
   };
 }
 
 function stripSecrets(profile: ServerProfile): ServerProfile {
-  if (profile.auth.kind !== "password") return profile;
+  if (profile.auth.kind === "openssh") {
+    return {
+      ...profile,
+      auth: {
+        ...profile.auth,
+        passphrase: "",
+      },
+    };
+  }
   return {
     ...profile,
     auth: {

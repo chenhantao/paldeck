@@ -13,6 +13,8 @@ export type Authentication =
       kind: "openssh";
       host: string;
       username: string;
+      requiresPassphrase: boolean;
+      passphrase: string;
     }
   | {
       kind: "password";

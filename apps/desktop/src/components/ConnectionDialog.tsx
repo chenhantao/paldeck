@@ -140,7 +140,7 @@ export function ConnectionDialog({
         <div className="security-note">
           <ShieldCheck size={18} />
           <span>
-            {t("密码不会持久化；服务器公钥和非敏感连接信息会保存在本机。")}
+            {t("登录密码和私钥口令不会持久化；服务器公钥和非敏感连接信息会保存在本机。")}
           </span>
         </div>
 
@@ -165,7 +165,11 @@ export function ConnectionDialog({
 function isConnectionComplete(profile: ServerProfile): boolean {
   if (!profile.name.trim() || !profile.remotePath.trim()) return false;
   if (profile.auth.kind === "openssh") {
-    return Boolean(profile.auth.host.trim() && profile.auth.username.trim());
+    return Boolean(
+      profile.auth.host.trim() &&
+        profile.auth.username.trim() &&
+        (!profile.auth.requiresPassphrase || profile.auth.passphrase),
+    );
   }
   return Boolean(
     profile.auth.host.trim() &&
