@@ -83,7 +83,7 @@ export function LifecycleActionDialog({
       >
         <header className="dialog__header">
           <div>
-            <span className="eyebrow">SAFE SERVER LIFECYCLE</span>
+            <span className="eyebrow">SAFE SERVER LIFECYCLE · BETA</span>
             <h2 id="lifecycle-title">{t(restarting ? "安全重启服务器" : "安全停止服务器")}</h2>
           </div>
           <button type="button" className="icon-button" onClick={onClose} disabled={running} aria-label={t("关闭")}>

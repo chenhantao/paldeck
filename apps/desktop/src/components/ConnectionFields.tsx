@@ -145,7 +145,7 @@ export function ConnectionFields({
                 disabled={disabled}
               />
               <span>
-                <strong>{t("私钥需要口令")}</strong>
+                <strong>{t("私钥需要口令")} · Beta</strong>
                 <small>{t("ssh-agent 已提供解锁密钥时无需启用。")}</small>
               </span>
             </label>

@@ -406,7 +406,7 @@ export function SetupWizard({
                           inspection.importCompatible
                             ? "发现可导入的现有部署"
                             : "现有部署暂时无法导入",
-                        )}
+                        )} · Beta
                       </strong>
                       <p>
                         {t(

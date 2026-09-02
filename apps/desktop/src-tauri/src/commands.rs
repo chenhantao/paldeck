@@ -1050,7 +1050,7 @@ fn safe_lifecycle_script(
     delay_seconds: u16,
 ) -> Result<String, String> {
     let lifecycle_command = match action {
-        "stop" => format!("{COMPOSE_COMMAND} down"),
+        "stop" => format!("{COMPOSE_COMMAND} stop -t 120 palworld"),
         "restart" => format!("{COMPOSE_COMMAND} restart -t 120 palworld"),
         _ => return Err("不支持的安全停服操作".into()),
     };
@@ -1770,7 +1770,8 @@ mod tests {
         assert!(restart.contains("sleep 10"));
 
         let stop = safe_lifecycle_script("stop", "Stopping soon", 0).unwrap();
-        assert!(stop.contains("-f ./compose.yaml down"));
+        assert!(stop.contains("stop -t 120 palworld"));
+        assert!(!stop.contains(" down"));
         assert!(safe_lifecycle_script("recreate", "No", 0).is_err());
     }
 }

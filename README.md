@@ -17,13 +17,13 @@ desktop client performs allowlisted management operations over SSH.
 - Deploy a Palworld dedicated server with Docker Compose
 - Configure common server, network, backup, and world options through `.env`
 - Manage servers from a cross-platform Tauri 2, React, and Rust desktop client
-- Use a readable cross-platform type scale, plus Windows-optimized fonts and fluid dashboard and setup layouts for wide or maximized windows
-- Keep Windows OpenSSH operations in the background without flashing a console window
+- Use a readable cross-platform type scale, plus Windows-optimized fonts and fluid dashboard and setup layouts for wide or maximized windows (Beta)
+- Keep Windows OpenSSH operations in the background without flashing a console window (Beta)
 - Save multiple server profiles and add, switch, edit, or locally remove them (Beta)
 - Use the desktop interface in English or Simplified Chinese, or follow the system language
 - Inspect Linux, amd64, Docker, and Compose during first-time setup
 - Connect as an explicit `username@host` with the system OpenSSH configuration and keys, or use username-and-password login
-- Reopen Paldeck-managed deployments, explicitly import compatible existing deployments, or safely create a new one
+- Reopen Paldeck-managed deployments, explicitly import compatible existing deployments (Beta), or safely create a new one
 - Validate remote paths and Compose operations against strict allowlists
 - Store deployment files in `~/.palworld` for the remote account by default
 - Bind the Palworld REST API to the server loopback interface by default
@@ -34,8 +34,9 @@ desktop client performs allowlisted management operations over SSH.
 - Broadcast messages and kick or ban online players through the container REST client
 - Show immediate progress for manual world saves, preserve REST failures, and verify successful
   requests against the remote save-file timestamp
-- Safely stop or restart by broadcasting a customizable countdown, verifying a world save, and
-  aborting the lifecycle operation if broadcast or save fails
+- Safely stop or restart (Beta) by broadcasting a customizable countdown, verifying a world save, and
+  aborting the lifecycle operation if broadcast or save fails; stopping preserves the container
+  and Compose network for the next start
 - After safely writing world settings, choose whether to recreate the container immediately or
   apply the changes during a later restart
 
@@ -105,7 +106,7 @@ connections.
 On first launch, the desktop client opens the setup wizard:
 
 1. For OpenSSH/key authentication, enter the username and host; Paldeck invokes
-   the system SSH client with `username@host`. An optional in-memory passphrase
+   the system SSH client with `username@host`. An optional in-memory passphrase (Beta)
    unlocks an encrypted private key when `ssh-agent` does not already provide
    it. Alternatively, use direct username-and-password login.
 2. For password login, verify the server's SHA256 host-key fingerprint on the
@@ -137,10 +138,12 @@ The server selector in the sidebar manages multiple saved connections. An
 existing single-server profile is migrated automatically. Removing a profile
 deletes only its local, non-secret connection record: it never stops the
 server or removes the remote deployment, saves, or backups. Removing the last
-profile returns to the setup wizard. Multi-server profile management and the
-backup policy/delete/restore controls are currently marked **Beta** until they
-receive broader packaged-client and remote-server testing. Keep independent
-connection details and an additional save backup while evaluating them.
+profile returns to the setup wizard. Multi-server profile management, existing
+deployment import, encrypted-key passphrases, safe stop/restart, backup
+policy/delete/restore controls, and the Windows wide-window and background-SSH
+behavior are currently marked **Beta** until they receive broader packaged-client
+and remote-server testing. Keep independent connection details and an additional
+save backup while evaluating them.
 
 Common checks:
 
